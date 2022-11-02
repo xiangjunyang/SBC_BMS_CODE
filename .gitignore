@@ -1,6 +1,9 @@
 #keras model
 *.h5
 
+#vm
+venv
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
