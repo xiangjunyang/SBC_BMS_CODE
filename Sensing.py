@@ -7,10 +7,10 @@ from keras.models import load_model
 
 class Data():
 	def __init__(self):
-		self.SOC_Cha_model_files = './models/Cha_model.h5'
-		self.SOC_Discha_model_files = './models/Discha_model.h5'
-		self.SOH_Cha_model_files = './models/Cha_model.h5'
-		self.SOH_Discha_model_files = './models/Discha_model.h5'
+		self.SOC_Cha_model_files = './models/SOC_Cha_model.h5'
+		self.SOC_Discha_model_files = './models/SOC_Discha_model.h5'
+		self.SOH_Cha_model_files = './models/SOH_Cha_model.h5'
+		self.SOH_Discha_model_files = './models/SOH_Discha_model.h5'
 		self.SOC_Cha_model = load_model(self.SOC_Cha_model_files)
 		self.SOC_Discha_model = load_model(self.SOC_Discha_model_files)
 		self.SOH_Cha_model = load_model(self.SOH_Cha_model_files)
@@ -42,17 +42,19 @@ class Data():
 
 
 	def cal_SOC(self,I, V, T, SOH):
-		V = Data.Inverse_Single_input(V, 2.3169, 2.7019)
-		T = Data.Inverse_Single_input(T, 25.7, 40.3)
-		SOH = Data.Inverse_Single_input(SOH, 97.0, 102.4)
+		V = Data.Inverse_Single_input(V, 2.3169, 2.7019)#V
+		T = Data.Inverse_Single_input(T, 25.7, 40.3)#T
+		SOH = Data.Inverse_Single_input(SOH, 97.0, 102.4)#SOH
 		
-		V_in = np.full((1,1),V)
-		T_in = np.full((1,1),T)
-		SOH_in = np.full((1,1),SOH)
+		V_in = np.full((1,1),0.78415105)#V
+		T_in = np.full((1,1),0.34246575)#T
+		SOH_in = np.full((1,1),0.98148148)#SOH
 		if I > 0:
 			SOC_pred = self.SOC_Discha_model.predict((V_in, T_in, SOH_in))
+			print("discharge mode")
 		else:
 			SOC_pred = self.SOC_Cha_model.predict((V_in, T_in, SOH_in))
+			print("charge mode")
 		SOC = Data.Reverse_Single_input(SOC_pred[0][0], 0, 100)
 		return SOC
 
@@ -101,10 +103,10 @@ class Data():
 			I=decode["pack_current"]
 			Temp=decode["internalTemp"]
 			Pre_SOC = Data.cal_SOC(self,I, V, Temp, 100)
-			print("pre soc = ",Pre_SOC)
+			print("pre soc = \n",Pre_SOC)
 
 			Current_Time = datetime.now()
-			writer.writerow([data_count_id, 'bms 1', decode["internalTemp"], decode["TS1Temp"], decode["TS3Temp"], decode["pack_current"], decode["Stack_Voltage"], decode["cell_voltage1"], decode["cell_voltage2"], decode["cell_voltage3"], decode["cell_voltage4"], decode["cell_voltage5"], decode["cell_voltage6"], decode["cell_voltage7"], decode["cell_voltage8"], decode["cell_voltage9"], decode["cell_voltage10"], decode["cell_voltage11"], decode["cell_voltage12"], decode["cell_voltage13"], decode["cell_voltage14"], decode["cell_voltage15"], decode["cell_voltage16"], decode["cell_voltage17"], decode["cell_voltage18"], decode["cell_voltage19"], decode["cell_voltage20"], 100, 100, Current_Time])
+			writer.writerow([data_count_id, 'bms 1', decode["internalTemp"], decode["TS1Temp"], decode["TS3Temp"], decode["pack_current"], decode["Stack_Voltage"], decode["cell_voltage1"], decode["cell_voltage2"], decode["cell_voltage3"], decode["cell_voltage4"], decode["cell_voltage5"], decode["cell_voltage6"], decode["cell_voltage7"], decode["cell_voltage8"], decode["cell_voltage9"], decode["cell_voltage10"], decode["cell_voltage11"], decode["cell_voltage12"], decode["cell_voltage13"], decode["cell_voltage14"], decode["cell_voltage15"], decode["cell_voltage16"], decode["cell_voltage17"], decode["cell_voltage18"], decode["cell_voltage19"], decode["cell_voltage20"], Pre_SOC, 100, Current_Time])
 			data_count_id += 1
 		BMS_file.close()
 def main():
