@@ -58,7 +58,7 @@ class Data():
 		SOC = Data.Reverse_Single_input(SOC_pred[0][0], 0, 100)
 		return SOC
 
-	def read_record_raw_data(self,Data_name):
+	def read_record_raw_data(self,PORT,Data_name):
 		#open csv file
 		BMS_file = open(Data_name, 'a+', newline='')
 		
@@ -80,7 +80,7 @@ class Data():
 			SOH = reader[col][28]	
 		#pyserial init
 		stmserial = serial.Serial()
-		stmserial.port = "/dev/ttyUSB0"
+		stmserial.port = PORT
 		# 115200,N,8,1
 		stmserial.baudrate = 115200
 		stmserial.bytesize = serial.EIGHTBITS  # number of bits per bytes
@@ -98,20 +98,20 @@ class Data():
 			response_json = stmserial.readline()
 			#print("get json data :\r\n",response_json)
 			decode = json.loads(response_json)
-			print("decode json = ",decode)
+			#print("decode json = ",decode)
 			V=decode["Stack_Voltage"]
 			I=decode["pack_current"]
 			Temp=decode["internalTemp"]
 			Pre_SOC = Data.cal_SOC(self,I, V, Temp, 100)
-			print("pre soc = \n",Pre_SOC)
+			print("pre soc = ",Pre_SOC)
 
 			Current_Time = datetime.now()
 			writer.writerow([data_count_id, 'bms 1', decode["internalTemp"], decode["TS1Temp"], decode["TS3Temp"], decode["pack_current"], decode["Stack_Voltage"], decode["cell_voltage1"], decode["cell_voltage2"], decode["cell_voltage3"], decode["cell_voltage4"], decode["cell_voltage5"], decode["cell_voltage6"], decode["cell_voltage7"], decode["cell_voltage8"], decode["cell_voltage9"], decode["cell_voltage10"], decode["cell_voltage11"], decode["cell_voltage12"], decode["cell_voltage13"], decode["cell_voltage14"], decode["cell_voltage15"], decode["cell_voltage16"], decode["cell_voltage17"], decode["cell_voltage18"], decode["cell_voltage19"], decode["cell_voltage20"], Pre_SOC, 100, Current_Time])
 			data_count_id += 1
 		BMS_file.close()
-def Get_new_data():
+def Get_new_data(port,data_name):
 	NEW_DATA=Data()
-	NEW_DATA.read_record_raw_data("./output_data/BMS1_output_data") 
+	NEW_DATA.read_record_raw_data(port,data_name) 
 
 if __name__ == '__main__':
-	Get_new_data()
+	Get_new_data('/dev/ttyUSB0',"./output_data/BMS1_output_data")
