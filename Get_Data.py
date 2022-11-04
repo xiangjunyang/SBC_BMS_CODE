@@ -109,9 +109,9 @@ class Data():
 			writer.writerow([data_count_id, 'bms 1', decode["internalTemp"], decode["TS1Temp"], decode["TS3Temp"], decode["pack_current"], decode["Stack_Voltage"], decode["cell_voltage1"], decode["cell_voltage2"], decode["cell_voltage3"], decode["cell_voltage4"], decode["cell_voltage5"], decode["cell_voltage6"], decode["cell_voltage7"], decode["cell_voltage8"], decode["cell_voltage9"], decode["cell_voltage10"], decode["cell_voltage11"], decode["cell_voltage12"], decode["cell_voltage13"], decode["cell_voltage14"], decode["cell_voltage15"], decode["cell_voltage16"], decode["cell_voltage17"], decode["cell_voltage18"], decode["cell_voltage19"], decode["cell_voltage20"], Pre_SOC, 100, Current_Time])
 			data_count_id += 1
 		BMS_file.close()
-def main():
+def Get_new_data():
 	NEW_DATA=Data()
 	NEW_DATA.read_record_raw_data("./output_data/BMS1_output_data") 
 
 if __name__ == '__main__':
-	main()
+	Get_new_data()
