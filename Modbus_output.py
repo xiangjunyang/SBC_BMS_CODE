@@ -16,7 +16,7 @@ class Modbus_output():
                                     xonxoff=0
                                     )
 	def Start_service(self):
-		print("start")
+		print("Modbus service start")
 		try:
 			self.modbusServ.start()
 			print("receiver module started")
@@ -30,7 +30,7 @@ class Modbus_output():
 				slave.set_values ("b", 2, 0)
 				slave.set_values ("b", 3, 0)
 	
-				time.sleep(0.1)   # small delay to let the communication thread doing his job
+				time.sleep(0.5)   # small delay to let the communication thread doing his job
 
 		finally:
 			self.modbusServ.stop()
