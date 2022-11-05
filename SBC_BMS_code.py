@@ -4,19 +4,6 @@ import time
 from Get_Data import *
 from Modbus_output  import *
 
-def modbus_task(modbus_port):
-	  while(1):
-    		Start_Modbus(modbus_port)
-    		time.sleep(1)
-def data_task(obj):
-	while(1):
-		obj.read_record_raw_data()
-		time.sleep(1)
-def test_task():
-	print("testing~~~")
-	while(1):
-		print("testing 999")
-		time.sleep(1)
 def  main():
 	
 	serial_port='/dev/ttyUSB1'
