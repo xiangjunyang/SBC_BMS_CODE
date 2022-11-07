@@ -82,11 +82,14 @@ class Data():
 		
 		#write init data
 		self.writer = csv.writer(self.BMS_file)		
-		self.writer.writerow(['Data_id', 'BMS_Num', 'internal tempture(*C)', 'TS1_tempture(*C)', 'ts3 tempture(*C)', 'cell current(mA)', 'Stack Voltage(mV)', 'cell_voltage1', 'cell_voltage2', 'cell_voltage3', 'cell_voltage4', 'cell_voltage5', 'cell_voltage6', 'cell_voltage7', 'cell_voltage8', 'cell_voltage9', 'cell_voltage10', 'cell_voltage11', 'cell_voltage12', 'cell_voltage13', 'cell_voltage14', 'cell_voltage15', 'cell_voltage16', 'cell_voltage17', 'cell_voltage18', 'cell_voltage19', 'cell_voltage20', 'SOC', 'SOH', 'Current_Time'])
+		self.writer.writerow(['Data_id', 'BMS_Num', 'state', 'error code', 'Stack Voltage(mV)', 'cell current(mA)', ' tempture(*C)', 'SOC', 'SOH', 'Current_Time',  'cell_voltage1', 'cell_voltage2', 'cell_voltage3', 'cell_voltage4', 'cell_voltage5', 'cell_voltage6', 'cell_voltage7', 'cell_voltage8', 'cell_voltage9', 'cell_voltage10', 'cell_voltage11', 'cell_voltage12', 'cell_voltage13', 'cell_voltage14', 'cell_voltage15', 'cell_voltage16', 'cell_voltage17', 'cell_voltage18', 'cell_voltage19', 'cell_voltage20', 'dV/dt', 'dsoc/dv'])
 		self.data_count_id = 1
 		print("get self data count",self.data_count_id)
 
 	def read_record_raw_data(self):
+		old_time=0
+		old_soc=0
+		old_v=0
 		while(1):
 			response_json = self.stmserial.readline()
 			#print("get json data :\r\n",response_json)
@@ -97,11 +100,26 @@ class Data():
 			Temp=decode["internalTemp"]
 			Pre_SOC = Data.cal_SOC(self,I, V, Temp, 100)
 			print("pre soc = ",Pre_SOC)
-			print(self.data_count_id)
-
-			Current_Time = datetime.now()
-			self.writer.writerow([self.data_count_id, 'bms 1', decode["internalTemp"], decode["TS1Temp"], decode["TS3Temp"], decode["pack_current"], decode["Stack_Voltage"], decode["cell_voltage1"], decode["cell_voltage2"], decode["cell_voltage3"], decode["cell_voltage4"], decode["cell_voltage5"], decode["cell_voltage6"], decode["cell_voltage7"], decode["cell_voltage8"], decode["cell_voltage9"], decode["cell_voltage10"], decode["cell_voltage11"], decode["cell_voltage12"], decode["cell_voltage13"], decode["cell_voltage14"], decode["cell_voltage15"], decode["cell_voltage16"], decode["cell_voltage17"], decode["cell_voltage18"], decode["cell_voltage19"], decode["cell_voltage20"], Pre_SOC, 100, Current_Time])
+			print("id",self.data_count_id)
+			now_time = datetime.now()
+			
+			if self.data_count_id ==1:
+				dt=dv=dsoc=1
+			else :
+				dt=(now_time-old_time).total_seconds()
+				dv=(V-old_v)
+				dsoc=Pre_SOC-old_soc
+			
+			dvdt=dv/dt
+			dsocdv=dsoc/dv
+			print("dt",dt)
+			SOH=100 #~~~~~~~~~~~#
+			self.writer.writerow([self.data_count_id, 'bms 1', 'state', 'error code', decode["Stack_Voltage"],  decode["pack_current"], decode["internalTemp"], Pre_SOC, SOH, now_time, decode["cell_voltage1"], decode["cell_voltage2"], decode["cell_voltage3"], decode["cell_voltage4"], decode["cell_voltage5"], decode["cell_voltage6"], decode["cell_voltage7"], decode["cell_voltage8"], decode["cell_voltage9"], decode["cell_voltage10"], decode["cell_voltage11"], decode["cell_voltage12"], decode["cell_voltage13"], decode["cell_voltage14"], decode["cell_voltage15"], decode["cell_voltage16"], decode["cell_voltage17"], decode["cell_voltage18"], decode["cell_voltage19"], decode["cell_voltage20"], dvdt, dsocdv])
 			self.data_count_id += 1
+			old_time=now_time
+			old_v=V
+			old_soc=Pre_SOC
+			
 			time.sleep(0.3)
 
 def Get_new_data(port,data_name):
