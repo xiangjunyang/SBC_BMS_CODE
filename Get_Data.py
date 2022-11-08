@@ -24,12 +24,6 @@ class Data():
 			output[i] = (abs(inputs[i]-lower_limit)/abs(upper_limit-lower_limit))
 		return output
 
-	def Inverse_2D(inputs,lower_limit,upper_limit):
-		output=np.zeros((inputs.shape[0],inputs.shape[1]))
-			for i in range(inputs.shape[0]):
-				for j in range(inputs.shape[1]): 
-					output[i][j]=(abs(inputs[i][j]-lower_limit)/abs(upper_limit-lower_limit))
-		return output
 
 	def Reverse_1D(inputs, lower_limit, upper_limit):
 		output = np.zeros(inputs.shape[0])
@@ -49,39 +43,43 @@ class Data():
 
 	def sliding_avg(inputs, window_size,n_th):
 		output=[]
-			for i in range(len(inputs)-window_size):
-				avg=0
-				for j in range(i,i+window_size,+1):
-					avg+=inputs[j]
-					avg=avg/window_size
-					output.append(avg**n_th)    
+		for i in range(len(inputs)-window_size):
+			avg=0
+			for j in range(i,i+window_size,+1):
+				avg+=inputs[j]
+				avg=avg/window_size
+				output.append(avg**n_th)    
 		return output
 	
 	def cal_SOH(self,file,mode):
 		file = open(file)
 		reader = csv.DictReader(file)
 		dVdT=[]
-		dSoCdV=[]
+		dSocdV=[]
 		for row in reader:
 			dVdT.append(row['dvdt'])
 			dSocdV.append(row['dsocdv'])
-		dVdT   = np.array(dVdT)
-		dSocdV = np.array(dSocdV)
 		
-		dVdT   = Data.sliding_avg(dVdT,20,1)
-		dSocdV = Data.sliding_avg(dSocdV, 20,1)
+		dVdT_arr   = np.array(dVdT)
+		dSocdV_arr = np.array(dSocdV)
+		dVdT_arr = dVdT_arr.astype(np.float)
+		dSocdV_arr = dSocdV_arr.astype(np.float)	
+	
+		dVdT_arr   = Data.sliding_avg(dVdT_arr,20,1)
+		dSocdV_arr = Data.sliding_avg(dSocdV_arr, 20,1)
 		
-		dVdT = Data.Inverse_1D(dVdT, 2.3169, 2.7019)
-		dSocdV = Data.Inverse_1D(dSocdV, 25.7, 40.3)
+		dVdT_arr = Data.Inverse_1D(dVdT_arr, 2.3169, 2.7019)
+		dSocdV_arr = Data.Inverse_1D(dSocdV_arr, 25.7, 40.3)
 		
-		np.reshape(dVdT,(1,dVdT.shape[0]))
-		np.reshape(dSocdV,(1,dSocdv.shape[0]))
-		if mode == 'cha_OK':
-			SOH_pred = self.SOH_Discha_model.predict((dVdT, dSocdV))
-		else if mode == 'dis_OK':	
-			SOH_pred = self.SOH_Cha_model.predict((dVdT, dSocdV))
+		dVdT_arr=np.full((1,dVdT_arr.shape[0]), dVdT_arr) 
+		dSocdV_arr=np.full((1,dSocdV_arr.shape[0]), dSocdV_arr)			
 
-		SOH = Data.Reverse_Single_input(SOH_pred, 97.0, 102.4)
+		if mode == 'dis_OK':
+			SOH_pred = self.SOH_Discha_model.predict((dVdT_arr, dSocdV_arr))
+		elif mode == 'cha_OK':	
+			SOH_pred = self.SOH_Cha_model.predict((dVdT_arr, dSocdV_arr))
+
+		SOH = Data.Reverse_Single_input(SOH_pred[0][0], 97.0, 102.4)
 		return SOH
 
 	def cal_SOC(self,I, V, T, SOH):
@@ -101,50 +99,54 @@ class Data():
 		SOC = Data.Reverse_Single_input(SOC_pred[0][0], 0, 100)
 		return SOC
 
-	def record_SOH_data(self,V,I,now_time,Pre_SOC,dis_flag,dis_count,cha_flag,cha_count):	
+	def record_SOH_data(self,V,I,now_time,Pre_SOC):	
 		if I>0 and 2.65>=V and V>=2.3:
-			if dis_flag==1:
-				old_time=now_time
-				old_v=V
-				old_soc=Pre_SOC
-			else if dis_flag%10==0:
-				dt=(now_time-old_time).total_seconds()
-				dv=(V-old_v)
-				dsoc=Pre_SOC-old_soc
+			if self.dis_flag==1:
+				self.old_time=now_time
+				self.old_v=V
+				self.old_soc=Pre_SOC
+			elif self.dis_flag%10==0:
+				dt=(now_time-self.old_time).total_seconds()
+				dv=(V-self.old_v)
+				dsoc=Pre_SOC-self.old_soc
 				dvdt=dv/dt
 				dsocdv=dsoc/dv
 				self.SOH_writer.writerow(['discha',dvdt,dsocdv])
-				old_time=now_time
-				old_v=V
-				old_soc=Pre_SOC
-				dis_count+=1
-			dis_flag+=1
-			if dis_count==254:
+				self.old_time=now_time
+				self.old_v=V
+				self.old_soc=Pre_SOC
+				self.dis_count+=1
+			self.dis_flag+=1
+			if self.dis_count==254:
 				#deal_SOH_data('discha')
-				dis_count=1
+				self.dis_count=1
 				return 'dis_OK'
+			else:
+				return 'dis_unready'
 		
-		else if I<0 and 2.65>=V and V>=2.45:
-			if cha_flag==1:
-				old_time=now_time
-				old_v=V
-				old_soc=Pre_SOC
-			else if cha_flag%10==0:
-				dt=(now_time-old_time).total_seconds()
-				dv=(V-old_v)
-				dsoc=Pre_SOC-old_soc
+		elif I<0 and 2.65>=V and V>=2.45:
+			if self.cha_flag==1:
+				self.old_time=now_time
+				self.old_v=V
+				self.old_soc=Pre_SOC
+			elif self.cha_flag%10==0:
+				dt=(now_time-self.old_time).total_seconds()
+				dv=(V-self.old_v)
+				dsoc=Pre_SOC-self.old_soc
 				dvdt=dv/dt
 				dsocdv=dsoc/dv
 				self.SOH_writer.writerow(['cha',dvdt,dsocdv])
-				old_time=now_time
-				old_v=V
-				old_soc=Pre_SOC
-				cha_count+=1
-			cha_flag+=1
-			if cha_count==106:
+				self.old_time=now_time
+				self.old_v=V
+				self.old_soc=Pre_SOC
+				self.cha_count+=1
+			self.cha_flag+=1
+			if self.cha_count==106:
 				#deal_SOH_data('cha')
-				cha_count=1
+				self.cha_count=1
 				return 'cha_OK'
+			else:
+				return 'cha_unready'
 
 	def serial_setup(self,PORT):
 		# pyserial init
@@ -185,10 +187,11 @@ class Data():
 		print("get self data count",self.data_count_id)
 
 	def read_record_raw_data(self):
-		dis_flag=1
-		dis_count=1
-		cha_flag=1
-		cha_count=1
+		self.dis_flag=1
+		self.dis_count=1
+		self.cha_flag=1
+		self.cha_count=1
+		SOH=100
 		while(1):
 			response_json = self.stmserial.readline()
 			#print("get json data :\r\n",response_json)
@@ -197,22 +200,20 @@ class Data():
 			V=decode["Stack_Voltage"]
 			I=decode["pack_current"]
 			Temp=decode["internalTemp"]
-			SOH=100
 			Pre_SOC = Data.cal_SOC(self,I, V, Temp, SOH)
 			#print("pre soc = ",Pre_SOC)
 			print("id = ",self.data_count_id)
 			now_time = datetime.now()
 			
-			SOH_state=Data.record_SOH_data(self,V,I,now_time,Pre_SOC,dis_flag,dis_count,cha_flag,cha_count) 
+			SOH_state=Data.record_SOH_data(self,V,I,now_time,Pre_SOC) 
 			if SOH_state == 'cha_OK' or SOH_state == 'dis_OK':
 				self.BMS_raw_file.close()
 				self.Basic_info.close()  
 				self.SOH_raw_file.close()
 				SOH = Data.cal_SOH(self,self.Data_name03,SOH_state)
-				self.open_file(self,self.Data_name01,self.Data_name02,self.Data_name03)
+				self.open_file(self.Data_name01,self.Data_name02,self.Data_name03)
 				pass
 			else :	
-				SOH=100
 				pass
 			
 			print("SOH=",SOH)
