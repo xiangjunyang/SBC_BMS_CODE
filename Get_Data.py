@@ -47,7 +47,7 @@ class Data():
 		output = (abs(upper_limit-lower_limit)*inputs)+lower_limit
 		return output
 
-	def sliding_avg(inputs, window_size,n_th,):
+	def sliding_avg(inputs, window_size,n_th):
 		output=[]
 			for i in range(len(inputs)-window_size):
 				avg=0
@@ -57,19 +57,31 @@ class Data():
 					output.append(avg**n_th)    
 		return output
 	
-	def cal_SOH(I, dVdT, dSocdV):
-			
+	def cal_SOH(self,file,mode):
+		file = open(file)
+		reader = csv.DictReader(file)
+		dVdT=[]
+		dSoCdV=[]
+		for row in reader:
+			dVdT.append(row['dvdt'])
+			dSocdV.append(row['dsocdv'])
+		dVdT   = np.array(dVdT)
+		dSocdV = np.array(dSocdV)
+		
+		dVdT   = Data.sliding_avg(dVdT,20,1)
+		dSocdV = Data.sliding_avg(dSocdV, 20,1)
+		
+		dVdT = Data.Inverse_1D(dVdT, 2.3169, 2.7019)
+		dSocdV = Data.Inverse_1D(dSocdV, 25.7, 40.3)
+		
+		np.reshape(dVdT,(1,dVdT.shape[0]))
+		np.reshape(dSocdV,(1,dSocdv.shape[0]))
 		if mode == 'cha_OK':
-			
+			SOH_pred = self.SOH_Discha_model.predict((dVdT, dSocdV))
 		else if mode == 'dis_OK':	
-		dVdT = Inverse_1D(dVdT, 2.3169, 2.7019)
-		dSocdV = Inverse_1D(dSocdV, 25.7, 40.3)
+			SOH_pred = self.SOH_Cha_model.predict((dVdT, dSocdV))
 
-		if I > 0:
-			SOH_pred = SOH_Discha_model.predict((dVdT, dSocdV))
-		else:
-			SOH_pred = SOH_Cha_model.predict((dVdT, dSocdV))
-		SOH = Reverse_Single_input(SOH_pred, 97.0, 102.4)
+		SOH = Data.Reverse_Single_input(SOH_pred, 97.0, 102.4)
 		return SOH
 
 	def cal_SOC(self,I, V, T, SOH):
@@ -173,9 +185,6 @@ class Data():
 		print("get self data count",self.data_count_id)
 
 	def read_record_raw_data(self):
-		old_time=0
-		old_soc=0
-		old_v=0
 		dis_flag=1
 		dis_count=1
 		cha_flag=1
@@ -188,22 +197,25 @@ class Data():
 			V=decode["Stack_Voltage"]
 			I=decode["pack_current"]
 			Temp=decode["internalTemp"]
-			Pre_SOC = Data.cal_SOC(self,I, V, Temp, 100)
+			SOH=100
+			Pre_SOC = Data.cal_SOC(self,I, V, Temp, SOH)
 			#print("pre soc = ",Pre_SOC)
-			print("id",self.data_count_id)
+			print("id = ",self.data_count_id)
 			now_time = datetime.now()
 			
-			SOH_state=record_SOH_data(self,V,I,now_time,Pre_SOC,dis_flag,dis_count,cha_flag,cha_count) 
+			SOH_state=Data.record_SOH_data(self,V,I,now_time,Pre_SOC,dis_flag,dis_count,cha_flag,cha_count) 
 			if SOH_state == 'cha_OK' or SOH_state == 'dis_OK':
 				self.BMS_raw_file.close()
 				self.Basic_info.close()  
 				self.SOH_raw_file.close()
-				self.cal_SOH(self,self.Data_name03,SOH_state)
+				SOH = Data.cal_SOH(self,self.Data_name03,SOH_state)
 				self.open_file(self,self.Data_name01,self.Data_name02,self.Data_name03)
+				pass
 			else :	
 				SOH=100
 				pass
-
+			
+			print("SOH=",SOH)
 			self.raw_writer.writerow([self.data_count_id, 'bms_1', 'state', 'error_code', decode["Stack_Voltage"],  decode["pack_current"], decode["internalTemp"], Pre_SOC, SOH, now_time, decode["cell_voltage1"], decode["cell_voltage2"], decode["cell_voltage3"], decode["cell_voltage4"], decode["cell_voltage5"], decode["cell_voltage6"], decode["cell_voltage7"], decode["cell_voltage8"], decode["cell_voltage9"], decode["cell_voltage10"], decode["cell_voltage11"], decode["cell_voltage12"], decode["cell_voltage13"], decode["cell_voltage14"], decode["cell_voltage15"], decode["cell_voltage16"], decode["cell_voltage17"], decode["cell_voltage18"], decode["cell_voltage19"], decode["cell_voltage20"] ])
 			self.data_count_id += 1
 			
