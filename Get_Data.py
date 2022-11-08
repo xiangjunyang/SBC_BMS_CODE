@@ -24,6 +24,12 @@ class Data():
 			output[i] = (abs(inputs[i]-lower_limit)/abs(upper_limit-lower_limit))
 		return output
 
+	def Inverse_2D(inputs,lower_limit,upper_limit):
+		output=np.zeros((inputs.shape[0],inputs.shape[1]))
+			for i in range(inputs.shape[0]):
+				for j in range(inputs.shape[1]): 
+					output[i][j]=(abs(inputs[i][j]-lower_limit)/abs(upper_limit-lower_limit))
+		return output
 
 	def Reverse_1D(inputs, lower_limit, upper_limit):
 		output = np.zeros(inputs.shape[0])
@@ -41,6 +47,30 @@ class Data():
 		output = (abs(upper_limit-lower_limit)*inputs)+lower_limit
 		return output
 
+	def sliding_avg(inputs, window_size,n_th,):
+		output=[]
+			for i in range(len(inputs)-window_size):
+				avg=0
+				for j in range(i,i+window_size,+1):
+					avg+=inputs[j]
+					avg=avg/window_size
+					output.append(avg**n_th)    
+		return output
+	
+	def cal_SOH(I, dVdT, dSocdV):
+			
+		if mode == 'cha_OK':
+			
+		else if mode == 'dis_OK':	
+		dVdT = Inverse_1D(dVdT, 2.3169, 2.7019)
+		dSocdV = Inverse_1D(dSocdV, 25.7, 40.3)
+
+		if I > 0:
+			SOH_pred = SOH_Discha_model.predict((dVdT, dSocdV))
+		else:
+			SOH_pred = SOH_Cha_model.predict((dVdT, dSocdV))
+		SOH = Reverse_Single_input(SOH_pred, 97.0, 102.4)
+		return SOH
 
 	def cal_SOC(self,I, V, T, SOH):
 		V = Data.Inverse_Single_input(V, 2.3169, 2.7019)#V
@@ -59,6 +89,51 @@ class Data():
 		SOC = Data.Reverse_Single_input(SOC_pred[0][0], 0, 100)
 		return SOC
 
+	def record_SOH_data(self,V,I,now_time,Pre_SOC,dis_flag,dis_count,cha_flag,cha_count):	
+		if I>0 and 2.65>=V and V>=2.3:
+			if dis_flag==1:
+				old_time=now_time
+				old_v=V
+				old_soc=Pre_SOC
+			else if dis_flag%10==0:
+				dt=(now_time-old_time).total_seconds()
+				dv=(V-old_v)
+				dsoc=Pre_SOC-old_soc
+				dvdt=dv/dt
+				dsocdv=dsoc/dv
+				self.SOH_writer.writerow(['discha',dvdt,dsocdv])
+				old_time=now_time
+				old_v=V
+				old_soc=Pre_SOC
+				dis_count+=1
+			dis_flag+=1
+			if dis_count==254:
+				#deal_SOH_data('discha')
+				dis_count=1
+				return 'dis_OK'
+		
+		else if I<0 and 2.65>=V and V>=2.45:
+			if cha_flag==1:
+				old_time=now_time
+				old_v=V
+				old_soc=Pre_SOC
+			else if cha_flag%10==0:
+				dt=(now_time-old_time).total_seconds()
+				dv=(V-old_v)
+				dsoc=Pre_SOC-old_soc
+				dvdt=dv/dt
+				dsocdv=dsoc/dv
+				self.SOH_writer.writerow(['cha',dvdt,dsocdv])
+				old_time=now_time
+				old_v=V
+				old_soc=Pre_SOC
+				cha_count+=1
+			cha_flag+=1
+			if cha_count==106:
+				#deal_SOH_data('cha')
+				cha_count=1
+				return 'cha_OK'
+
 	def serial_setup(self,PORT):
 		# pyserial init
 		self.stmserial = serial.Serial()
@@ -76,13 +151,24 @@ class Data():
 		self.stmserial.dsrdtr = False  # disable hardware (DSR/DTR) flow control
 		self.stmserial.open()	
 	
-	def open_file(self,Data_name):
+	def open_file(self,Data_name01,Data_name02,Data_name03):
+		self.Data_name01=Data_name01
+		self.Data_name02=Data_name02
+		self.Data_name03=Data_name03
 		#open csv file
-		self.BMS_file = open(Data_name, 'a+', newline='')
-		
+		self.BMS_raw_file = open(self.Data_name01, 'w+', newline='')
+		self.Basic_info = open(self.Data_name02,'w+', newline='')
+		self.SOH_raw_file = open(self.Data_name03,'w+', newline='')
 		#write init data
-		self.writer = csv.writer(self.BMS_file)		
-		self.writer.writerow(['Data_id', 'BMS_Num', 'state', 'error code', 'Stack Voltage(mV)', 'cell current(mA)', ' tempture(*C)', 'SOC', 'SOH', 'Current_Time',  'cell_voltage1', 'cell_voltage2', 'cell_voltage3', 'cell_voltage4', 'cell_voltage5', 'cell_voltage6', 'cell_voltage7', 'cell_voltage8', 'cell_voltage9', 'cell_voltage10', 'cell_voltage11', 'cell_voltage12', 'cell_voltage13', 'cell_voltage14', 'cell_voltage15', 'cell_voltage16', 'cell_voltage17', 'cell_voltage18', 'cell_voltage19', 'cell_voltage20', 'dV/dt', 'dsoc/dv'])
+		self.raw_writer = csv.writer(self.BMS_raw_file)		
+		self.raw_writer.writerow(['Data_id', 'BMS_Num', 'state', 'error code', 'Stack Voltage(mV)', 'cell current(mA)', ' tempture(*C)', 'SOC', 'SOH', 'Current_Time',  'cell_voltage1', 'cell_voltage2', 'cell_voltage3', 'cell_voltage4', 'cell_voltage5', 'cell_voltage6', 'cell_voltage7', 'cell_voltage8', 'cell_voltage9', 'cell_voltage10', 'cell_voltage11', 'cell_voltage12', 'cell_voltage13', 'cell_voltage14', 'cell_voltage15', 'cell_voltage16', 'cell_voltage17', 'cell_voltage18', 'cell_voltage19', 'cell_voltage20'])
+		
+		self.basic_writer = csv.writer(self.Basic_info)	
+		self.basic_writer.writerow(['V','SOC','SOH'])
+		
+		self.SOH_writer = csv.writer(self.SOH_raw_file)
+		self.SOH_writer.writerow(['mode','dV_dt','dSOC_dt'])
+		
 		self.data_count_id = 1
 		print("get self data count",self.data_count_id)
 
@@ -90,6 +176,10 @@ class Data():
 		old_time=0
 		old_soc=0
 		old_v=0
+		dis_flag=1
+		dis_count=1
+		cha_flag=1
+		cha_count=1
 		while(1):
 			response_json = self.stmserial.readline()
 			#print("get json data :\r\n",response_json)
@@ -99,28 +189,25 @@ class Data():
 			I=decode["pack_current"]
 			Temp=decode["internalTemp"]
 			Pre_SOC = Data.cal_SOC(self,I, V, Temp, 100)
-			print("pre soc = ",Pre_SOC)
+			#print("pre soc = ",Pre_SOC)
 			print("id",self.data_count_id)
 			now_time = datetime.now()
 			
-			if self.data_count_id ==1:
-				dt=dv=dsoc=1
-			else :
-				dt=(now_time-old_time).total_seconds()
-				dv=(V-old_v)
-				dsoc=Pre_SOC-old_soc
-			
-			dvdt=dv/dt
-			dsocdv=dsoc/dv
-			print("dt",dt)
-			SOH=100 #~~~~~~~~~~~#
-			self.writer.writerow([self.data_count_id, 'bms 1', 'state', 'error code', decode["Stack_Voltage"],  decode["pack_current"], decode["internalTemp"], Pre_SOC, SOH, now_time, decode["cell_voltage1"], decode["cell_voltage2"], decode["cell_voltage3"], decode["cell_voltage4"], decode["cell_voltage5"], decode["cell_voltage6"], decode["cell_voltage7"], decode["cell_voltage8"], decode["cell_voltage9"], decode["cell_voltage10"], decode["cell_voltage11"], decode["cell_voltage12"], decode["cell_voltage13"], decode["cell_voltage14"], decode["cell_voltage15"], decode["cell_voltage16"], decode["cell_voltage17"], decode["cell_voltage18"], decode["cell_voltage19"], decode["cell_voltage20"], dvdt, dsocdv])
+			SOH_state=record_SOH_data(self,V,I,now_time,Pre_SOC,dis_flag,dis_count,cha_flag,cha_count) 
+			if SOH_state == 'cha_OK' or SOH_state == 'dis_OK':
+				self.BMS_raw_file.close()
+				self.Basic_info.close()  
+				self.SOH_raw_file.close()
+				self.cal_SOH(self,self.Data_name03,SOH_state)
+				self.open_file(self,self.Data_name01,self.Data_name02,self.Data_name03)
+			else :	
+				SOH=100
+				pass
+
+			self.raw_writer.writerow([self.data_count_id, 'bms_1', 'state', 'error_code', decode["Stack_Voltage"],  decode["pack_current"], decode["internalTemp"], Pre_SOC, SOH, now_time, decode["cell_voltage1"], decode["cell_voltage2"], decode["cell_voltage3"], decode["cell_voltage4"], decode["cell_voltage5"], decode["cell_voltage6"], decode["cell_voltage7"], decode["cell_voltage8"], decode["cell_voltage9"], decode["cell_voltage10"], decode["cell_voltage11"], decode["cell_voltage12"], decode["cell_voltage13"], decode["cell_voltage14"], decode["cell_voltage15"], decode["cell_voltage16"], decode["cell_voltage17"], decode["cell_voltage18"], decode["cell_voltage19"], decode["cell_voltage20"] ])
 			self.data_count_id += 1
-			old_time=now_time
-			old_v=V
-			old_soc=Pre_SOC
 			
-			time.sleep(0.3)
+			time.sleep(0.5)
 
 def Get_new_data(port,data_name):
 	NEW_DATA=Data()
@@ -129,4 +216,4 @@ def Get_new_data(port,data_name):
 	NEW_DATA.read_record_raw_data() 
 
 if __name__ == '__main__':
-	Get_new_data('/dev/ttyUSB1',"./output_data/BMS1_output_data")
+	Get_new_data('/dev/ttyUSB1',"./output_data/BMS1_Output_raw_data","./output_data/BMS1_Basic_data","./output_data/BMS1_SOH_raw_data")
