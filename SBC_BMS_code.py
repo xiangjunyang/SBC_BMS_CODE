@@ -21,7 +21,7 @@ def  main():
 		
 	t.start()
 	
-	mbs_service.Start_service()
+	mbs_service.Start_service(Get_data.reg)
 	
 	#wait the thread finish
 	t.join()

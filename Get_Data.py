@@ -147,7 +147,7 @@ class Data():
 				return 'cha_OK'
 			else:
 				return 'cha_unready'
-
+	
 	def serial_setup(self,PORT):
 		# pyserial init
 		self.stmserial = serial.Serial()
@@ -191,35 +191,36 @@ class Data():
 		self.dis_count=1
 		self.cha_flag=1
 		self.cha_count=1
-		SOH=100
+		self.SOH=100
 		while(1):
 			response_json = self.stmserial.readline()
 			#print("get json data :\r\n",response_json)
 			decode = json.loads(response_json)
 			#print("decode json = ",decode)
-			V=decode["Stack_Voltage"]
-			I=decode["pack_current"]
-			Temp=decode["internalTemp"]
-			Pre_SOC = Data.cal_SOC(self,I, V, Temp, SOH)
+			self.V=decode["Stack_Voltage"]
+			self.I=decode["pack_current"]
+			self.Temp=decode["internalTemp"]
+			self.SOC = Data.cal_SOC(self,I, V, Temp, SOH)
 			#print("pre soc = ",Pre_SOC)
 			print("id = ",self.data_count_id)
 			now_time = datetime.now()
 			
-			SOH_state=Data.record_SOH_data(self,V,I,now_time,Pre_SOC) 
+			SOH_state=Data.record_SOH_data(self,V,I,now_time,self.SOC) 
 			if SOH_state == 'cha_OK' or SOH_state == 'dis_OK':
 				self.BMS_raw_file.close()
 				self.Basic_info.close()  
 				self.SOH_raw_file.close()
-				SOH = Data.cal_SOH(self,self.Data_name03,SOH_state)
+				self.SOH = Data.cal_SOH(self,self.Data_name03,SOH_state)
 				self.open_file(self.Data_name01,self.Data_name02,self.Data_name03)
 				pass
 			else :	
 				pass
 			
-			print("SOH=",SOH)
-			self.raw_writer.writerow([self.data_count_id, 'bms_1', 'state', 'error_code', decode["Stack_Voltage"],  decode["pack_current"], decode["internalTemp"], Pre_SOC, SOH, now_time, decode["cell_voltage1"], decode["cell_voltage2"], decode["cell_voltage3"], decode["cell_voltage4"], decode["cell_voltage5"], decode["cell_voltage6"], decode["cell_voltage7"], decode["cell_voltage8"], decode["cell_voltage9"], decode["cell_voltage10"], decode["cell_voltage11"], decode["cell_voltage12"], decode["cell_voltage13"], decode["cell_voltage14"], decode["cell_voltage15"], decode["cell_voltage16"], decode["cell_voltage17"], decode["cell_voltage18"], decode["cell_voltage19"], decode["cell_voltage20"] ])
+			print("SOH=",self.SOH)
+			self.raw_writer.writerow([self.data_count_id, 'bms_1', 'state', 'error_code', decode["Stack_Voltage"],  decode["pack_current"], decode["internalTemp"],self.SOC, self.SOH, now_time, decode["cell_voltage1"], decode["cell_voltage2"], decode["cell_voltage3"], decode["cell_voltage4"], decode["cell_voltage5"], decode["cell_voltage6"], decode["cell_voltage7"], decode["cell_voltage8"], decode["cell_voltage9"], decode["cell_voltage10"], decode["cell_voltage11"], decode["cell_voltage12"], decode["cell_voltage13"], decode["cell_voltage14"], decode["cell_voltage15"], decode["cell_voltage16"], decode["cell_voltage17"], decode["cell_voltage18"], decode["cell_voltage19"], decode["cell_voltage20"] ])
 			self.data_count_id += 1
 			
+			self.reg=['state', 'error_code', decode["Stack_Voltage"],  decode["pack_current"], decode["internalTemp"],self.SOC, self.SOH, decode["cell_voltage1"], decode["cell_voltage2"], decode["cell_voltage3"], decode["cell_voltage4"], decode["cell_voltage5"], decode["cell_voltage6"], decode["cell_voltage7"], decode["cell_voltage8"], decode["cell_voltage9"], decode["cell_voltage10"], decode["cell_voltage11"], decode["cell_voltage12"], decode["cell_voltage13"], decode["cell_voltage14"], decode["cell_voltage15"], decode["cell_voltage16"], decode["cell_voltage17"], decode["cell_voltage18"], decode["cell_voltage19"], decode["cell_voltage20"] ])
 			time.sleep(0.5)
 
 def Get_new_data(port,data_name):
