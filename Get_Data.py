@@ -118,7 +118,6 @@ class Data():
 				self.dis_count+=1
 			self.dis_flag+=1
 			if self.dis_count==254:
-				#deal_SOH_data('discha')
 				self.dis_count=1
 				return 'dis_OK'
 			else:
@@ -142,7 +141,6 @@ class Data():
 				self.cha_count+=1
 			self.cha_flag+=1
 			if self.cha_count==106:
-				#deal_SOH_data('cha')
 				self.cha_count=1
 				return 'cha_OK'
 			else:
@@ -200,12 +198,12 @@ class Data():
 			self.V=decode["Stack_Voltage"]
 			self.I=decode["pack_current"]
 			self.Temp=decode["internalTemp"]
-			self.SOC = Data.cal_SOC(self,I, V, Temp, SOH)
+			self.SOC = Data.cal_SOC(self,self.I, self.V, self.Temp, self.SOH)
 			#print("pre soc = ",Pre_SOC)
 			print("id = ",self.data_count_id)
 			now_time = datetime.now()
 			
-			SOH_state=Data.record_SOH_data(self,V,I,now_time,self.SOC) 
+			SOH_state=Data.record_SOH_data(self,self.V,self.I,now_time,self.SOC) 
 			if SOH_state == 'cha_OK' or SOH_state == 'dis_OK':
 				self.BMS_raw_file.close()
 				self.Basic_info.close()  
@@ -216,7 +214,12 @@ class Data():
 			else :	
 				pass
 			
+			print("V=",self.V)
+			print("I=",self.I)
+			print("Temp=",self.Temp)
+			print("SOC=",self.SOC)
 			print("SOH=",self.SOH)
+			print("\n")
 			self.raw_writer.writerow([self.data_count_id, 'bms_1', 'state', 'error_code', decode["Stack_Voltage"],  decode["pack_current"], decode["internalTemp"],self.SOC, self.SOH, now_time, decode["cell_voltage1"], decode["cell_voltage2"], decode["cell_voltage3"], decode["cell_voltage4"], decode["cell_voltage5"], decode["cell_voltage6"], decode["cell_voltage7"], decode["cell_voltage8"], decode["cell_voltage9"], decode["cell_voltage10"], decode["cell_voltage11"], decode["cell_voltage12"], decode["cell_voltage13"], decode["cell_voltage14"], decode["cell_voltage15"], decode["cell_voltage16"], decode["cell_voltage17"], decode["cell_voltage18"], decode["cell_voltage19"], decode["cell_voltage20"] ])
 			self.data_count_id += 1
 			
@@ -230,4 +233,4 @@ def Get_new_data(port,data_name1,data_name2,data_name3):
 	NEW_DATA.read_record_raw_data() 
 
 if __name__ == '__main__':
-	Get_new_data('/dev/ttyUSB1',"./output_data/BMS1_Output_raw_data","./output_data/BMS1_Basic_data","./output_data/BMS1_SOH_raw_data")
+	Get_new_data('/dev/ttyUSB0',"./output_data/BMS1_Output_raw_data","./output_data/BMS1_Basic_data","./output_data/BMS1_SOH_raw_data")
