@@ -7,7 +7,7 @@ import numpy as np
 from SunSpec_mapping import *
 
 slave_address = 17
-Module_Index=01
+Module_Index = 1
 
 class Modbus_output():
 	def __init__(self,PORT):

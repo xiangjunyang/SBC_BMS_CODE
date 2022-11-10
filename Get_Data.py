@@ -57,8 +57,8 @@ class Data():
 		dVdT=[]
 		dSocdV=[]
 		for row in reader:
-			dVdT.append(row['dvdt'])
-			dSocdV.append(row['dsocdv'])
+			dVdT.append(row['dV_dt'])
+			dSocdV.append(row['dSOC_dv'])
 		
 		dVdT_arr   = np.array(dVdT)
 		dSocdV_arr = np.array(dSocdV)
@@ -181,7 +181,7 @@ class Data():
 		self.basic_writer.writerow(['V','SOC','SOH'])
 		
 		self.SOH_writer = csv.writer(self.SOH_raw_file)
-		self.SOH_writer.writerow(['mode','dV_dt','dSOC_dt'])
+		self.SOH_writer.writerow(['mode','dV_dt','dSOC_dv'])
 		
 		self.data_count_id = 1
 		print("get self data count",self.data_count_id)
@@ -220,13 +220,13 @@ class Data():
 			self.raw_writer.writerow([self.data_count_id, 'bms_1', 'state', 'error_code', decode["Stack_Voltage"],  decode["pack_current"], decode["internalTemp"],self.SOC, self.SOH, now_time, decode["cell_voltage1"], decode["cell_voltage2"], decode["cell_voltage3"], decode["cell_voltage4"], decode["cell_voltage5"], decode["cell_voltage6"], decode["cell_voltage7"], decode["cell_voltage8"], decode["cell_voltage9"], decode["cell_voltage10"], decode["cell_voltage11"], decode["cell_voltage12"], decode["cell_voltage13"], decode["cell_voltage14"], decode["cell_voltage15"], decode["cell_voltage16"], decode["cell_voltage17"], decode["cell_voltage18"], decode["cell_voltage19"], decode["cell_voltage20"] ])
 			self.data_count_id += 1
 			
-			self.reg=['state', 'error_code', decode["Stack_Voltage"],  decode["pack_current"], decode["internalTemp"],self.SOC, self.SOH, decode["cell_voltage1"], decode["cell_voltage2"], decode["cell_voltage3"], decode["cell_voltage4"], decode["cell_voltage5"], decode["cell_voltage6"], decode["cell_voltage7"], decode["cell_voltage8"], decode["cell_voltage9"], decode["cell_voltage10"], decode["cell_voltage11"], decode["cell_voltage12"], decode["cell_voltage13"], decode["cell_voltage14"], decode["cell_voltage15"], decode["cell_voltage16"], decode["cell_voltage17"], decode["cell_voltage18"], decode["cell_voltage19"], decode["cell_voltage20"] ])
+			self.reg=['state', 'error_code', decode["Stack_Voltage"],  decode["pack_current"], decode["internalTemp"],self.SOC, self.SOH, decode["cell_voltage1"], decode["cell_voltage2"], decode["cell_voltage3"], decode["cell_voltage4"], decode["cell_voltage5"], decode["cell_voltage6"], decode["cell_voltage7"], decode["cell_voltage8"], decode["cell_voltage9"], decode["cell_voltage10"], decode["cell_voltage11"], decode["cell_voltage12"], decode["cell_voltage13"], decode["cell_voltage14"], decode["cell_voltage15"], decode["cell_voltage16"], decode["cell_voltage17"], decode["cell_voltage18"], decode["cell_voltage19"], decode["cell_voltage20"] ]
 			time.sleep(0.5)
 
-def Get_new_data(port,data_name):
+def Get_new_data(port,data_name1,data_name2,data_name3):
 	NEW_DATA=Data()
 	NEW_DATA.serial_setup(port)
-	NEW_DATA.open_file(data_name)
+	NEW_DATA.open_file(data_name1,data_name2,data_name3)
 	NEW_DATA.read_record_raw_data() 
 
 if __name__ == '__main__':
