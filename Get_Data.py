@@ -233,4 +233,4 @@ def Get_new_data(port,data_name1,data_name2,data_name3):
 	NEW_DATA.read_record_raw_data() 
 
 if __name__ == '__main__':
-	Get_new_data('/dev/ttyUSB0',"./output_data/BMS1_Output_raw_data","./output_data/BMS1_Basic_data","./output_data/BMS1_SOH_raw_data")
+	Get_new_data('/dev/ttyUSB0',"./output_data/BMS1_Output_raw_data.csv","./output_data/BMS1_Basic_data.csv","./output_data/BMS1_SOH_raw_data.csv")
