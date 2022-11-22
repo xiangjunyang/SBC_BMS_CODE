@@ -49,12 +49,10 @@ class Modbus_output():
 			
 			Suns.SunS_mapping(slave_address,Module_Index,self.I,self.V_arr,self.Temp,self.state,self.err_code,self.SOC,self.SOH,self.V,self.Vmax,self.Vmin,self.Vmaxindex,self.Vminindex)
 			
-			slave = self.modbusServ.add_slave(slave_address)
-			slave.add_block ("mbs",cst.HOLDING_REGISTERS,40000,300)
-			
+            slave = self.modbusServ.add_slave(slave_address)
+            slave.add_block ("mbs",cst.HOLDING_REGISTERS,40000,300)
             reg=list(Suns.SunSp)
             slave.set_values ("mbs", 40000,reg)      #0x0b
-	
             time.sleep(0.5)   # small delay to let the communication thread doing his job
 			while True:
                 pass
