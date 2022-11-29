@@ -67,7 +67,7 @@ class Suns_map():
             self.SunSp[72] = 25
 		    
 		    # Nameplate Energy Capacity #1
-            self.SunSp[73] = 1365
+            self.SunSp[73] = 1200
 		    
 		    # Nameplate Max Charge Rate #1
             self.SunSp[74] = 90
@@ -133,16 +133,16 @@ class Suns_map():
 		    
 		    # Battery Event 1 Bitfield #2
             self.SunSp[96] = 0xffff
-            self.SunSp[97] = 0xffff
+            self.SunSp[97] = error_code
 		    # Battery Event 2 Bitfield #2
             self.SunSp[98] = 0xffff
-            self.SunSp[99] = 0xffff
+            self.SunSp[99] = error_code
 		    # Vendor Event Bitfield 1  #2
             self.SunSp[100] = 0xffff
-            self.SunSp[101] = 0xffff
+            self.SunSp[101] = error_code
 		    # Vendor Event Bitfield 2  #2
             self.SunSp[102] = 0xffff
-            self.SunSp[103] = 0xffff
+            self.SunSp[103] = error_code
 		    
 		    # External Battery Voltage #1
             self.SunSp[104] = (total_voltage)
@@ -237,7 +237,7 @@ class Suns_map():
 		    #************************************#
 		    #SunSpec Model Lithium-Ion Module Model #805 #
             self.SunSp[134] = 805
-            self.SunSp[135] = 94
+            self.SunSp[135] = 122
 		    
 		    # String Index #1
             self.SunSp[136] = 0
