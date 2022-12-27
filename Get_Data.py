@@ -155,7 +155,7 @@ class Data():
     	self.stmserial = serial.Serial()
     	self.stmserial.port = PORT
     	# 115200,N,8,1
-    	self.stmserial.baudrate = 115200
+    	self.stmserial.baudrate = 576000
     	self.stmserial.bytesize = serial.EIGHTBITS  # number of bits per bytes
     	self.stmserial.parity = serial.PARITY_NONE  # set parity check
     	self.stmserial.stopbits = serial.STOPBITS_ONE  # number of stop bits
@@ -208,22 +208,23 @@ class Data():
     	self.cha_flag=1
     	self.cha_count=1
     	self.SOH=100
-    	while(1):
+    	for i in range(10):
             response_json = self.stmserial.readline()
             #print("get json data :\r\n",response_json)
             decode = json.loads(response_json)
-            print("decode json = ",decode)
+            #print("decode json = ",decode)
             self.V=decode["battery_voltage"]/(20*1000)
-            self.I=decode["BMS1_pack_current"]
-            self.Temp=(decode["BMS1_internalTemp"]+decode["BMS2_internalTemp"])/2
+            self.I=decode["BMS1_pack_current"]/1000
+            t=[decode["BMS1_TS1Temp"],decode["BMS2_TS1Temp"],decode["BMS2_TS3Temp"]]
+            t=sorted(t, reverse = True)
+            self.Temp=t[0]/1000
             
-            if decode["BMS1_internalTemp"] == 'OK':		
+            if decode["battery_state"] == 'OK':		
                 self.state=0
             else :
                 self.state=1
             error_state=Data.decode_err_code(decode["BMS_error_code"])
             self.SOC = Data.cal_SOC(self,self.I, self.V, self.Temp, self.SOH)
-            #print("pre soc = ",Pre_SOC)
             print("id = ",self.data_count_id)
             now_time = datetime.now()
             
@@ -239,16 +240,15 @@ class Data():
             	pass
             
             print("V=",self.V*20*1000)
-            print("I=",self.I)
-            print("Temp=",self.Temp)
+            print("I=",self.I*1000)
+            print("Temp=",self.Temp*1000)
             print("SOC=",self.SOC)
             print("SOH=",self.SOH)
             print("\n")
-            self.raw_writer.writerow([self.data_count_id, 'BMS_1', self.state,error_state, decode["battery_voltage"],  decode["BMS1_pack_current"], self.Temp,self.SOC, self.SOH, now_time, decode["cell_voltage0"],decode["cell_voltage1"], decode["cell_voltage2"], decode["cell_voltage3"], decode["cell_voltage4"], decode["cell_voltage5"], decode["cell_voltage6"], decode["cell_voltage7"], decode["cell_voltage8"], decode["cell_voltage9"], decode["cell_voltage10"], decode["cell_voltage11"], decode["cell_voltage12"], decode["cell_voltage13"], decode["cell_voltage14"], decode["cell_voltage15"], decode["cell_voltage16"], decode["cell_voltage17"], decode["cell_voltage18"], decode["cell_voltage19"] ])
-            self.data_count_id += 1
-            
-            self.reg=[self.state,decode["BMS_error_code"], decode["battery_voltage"],  decode["BMS1_pack_current"], self.Temp,self.SOC, self.SOH, decode["cell_voltage0"],decode["cell_voltage1"], decode["cell_voltage2"], decode["cell_voltage3"], decode["cell_voltage4"], decode["cell_voltage5"], decode["cell_voltage6"], decode["cell_voltage7"], decode["cell_voltage8"], decode["cell_voltage9"], decode["cell_voltage10"], decode["cell_voltage11"], decode["cell_voltage12"], decode["cell_voltage13"], decode["cell_voltage14"], decode["cell_voltage15"], decode["cell_voltage16"], decode["cell_voltage17"], decode["cell_voltage18"], decode["cell_voltage19"] ]
-            time.sleep(0.5)
+            self.raw_writer.writerow([self.data_count_id, 'BMS_1', self.state,error_state, decode["battery_voltage"], decode["BMS1_pack_current"], self.Temp,self.SOC, self.SOH, now_time, decode["cell_voltage0"] , decode["cell_voltage1"], decode["cell_voltage2"], decode["cell_voltage3"], decode["cell_voltage4"], decode["cell_voltage5"], decode["cell_voltage6"], decode["cell_voltage7"], decode["cell_voltage8"], decode["cell_voltage9"], decode["cell_voltage10"], decode["cell_voltage11"], decode["cell_voltage12"], decode["cell_voltage13"], decode["cell_voltage14"], decode["cell_voltage15"], decode["cell_voltage16"], decode["cell_voltage17"], decode["cell_voltage18"], decode["cell_voltage19"]])
+            self.data_count_id += 1            
+            self.reg=[self.state,decode["BMS_error_code"], decode["battery_voltage"],  decode["BMS1_pack_current"], self.Temp,self.SOC, self.SOH , decode["cell_voltage0"],decode["cell_voltage1"], decode["cell_voltage2"], decode["cell_voltage3"], decode["cell_voltage4"], decode["cell_voltage5"], decode["cell_voltage6"], decode["cell_voltage7"], decode["cell_voltage8"], decode["cell_voltage9"], decode["cell_voltage10"], decode["cell_voltage11"], decode["cell_voltage12"], decode["cell_voltage13"], decode["cell_voltage14"], decode["cell_voltage15"], decode["cell_voltage16"], decode["cell_voltage17"], decode["cell_voltage18"], decode["cell_voltage19"] ]
+            time.sleep(0.1)
     
 def Get_new_data(port,data_name1,data_name2,data_name3):
 	NEW_DATA=Data()
@@ -257,4 +257,4 @@ def Get_new_data(port,data_name1,data_name2,data_name3):
 	NEW_DATA.read_record_raw_data() 
 
 if __name__ == '__main__':
-	Get_new_data('/dev/ttyUSB0',"./output_data/BMS1_Output_raw_data.csv","./output_data/BMS1_Basic_data.csv","./output_data/BMS1_SOH_raw_data.csv")
+	Get_new_data('/dev/ttyUSB1',"./output_data/BMS1_Output_raw_data.csv","./output_data/BMS1_Basic_data.csv","./output_data/BMS1_SOH_raw_data.csv")

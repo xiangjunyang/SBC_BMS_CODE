@@ -18,17 +18,17 @@ def  main():
     
     mbs_service=Modbus_output(modbus_port)
     
-    #thread task start	
-    t = threading.Thread(target = Get_data.read_record_raw_data)
-    	
-    t.start()
-    
-    mbs_service.Start_service(Get_data.reg)
-    
-    #wait the thread finish
-    t.join()
-    
-    print("finish thread")
+    while(1):
+        #thread task start	
+        t = threading.Thread(target = Get_data.read_record_raw_data)
+        t.start()
+
+        #wait the thread finish
+        t.join()
+        #print(Get_data.reg)
+        #mbs_service.Start_service(Get_data.reg)
+
+        print("finish thread")
 
 
 if __name__ == '__main__':	

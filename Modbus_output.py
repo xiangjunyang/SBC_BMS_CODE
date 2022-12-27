@@ -40,11 +40,11 @@ class Modbus_output():
         #self.V1 = reg[7]
 	
     def Start_service(self,reg):
-    #print("Modbus service start")
+        print("Modbus service start")
         try:
             Suns=Suns_map()
             self.modbusServ.start()
-            #print("receiver module started")
+            print("receiver module started")
             Modbus_output.write_reg_data(self,reg)	
 
             Suns.SunS_mapping(slave_address,Module_Index,self.I,self.V_arr,self.Temp,self.state,self.err_code,self.SOC,self.SOH,self.V,self.Vmax,self.Vmin,self.Vmaxindex,self.Vminindex)
@@ -54,12 +54,6 @@ class Modbus_output():
             reg=list(Suns.SunSp)
             slave.set_values ("mbs", 40000,reg)      #0x0b
             time.sleep(0.5)   # small delay to let the communication thread doing his job
-            while True:
-                pass
-                #reg=list(Suns.SunSp)
-                #slave.set_values ("mbs", 40000,reg)      #0x0b
-
-                #time.sleep(0.5)   # small delay to let the communication thread doing his job
 
         finally:
             self.modbusServ.stop()
