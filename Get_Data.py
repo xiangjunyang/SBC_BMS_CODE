@@ -1,3 +1,4 @@
+import os
 import csv
 import json
 import serial
@@ -10,6 +11,7 @@ from pykalman import KalmanFilter
 
 class Data:
     def __init__(self):
+        # print("init")
         # init class and load NN models
         self.SOC_Cha_model_files = "./models/SOC_Cha_FNN_model.h5"
         self.SOC_Discha_model_files = "./models/SOC_Discha_FNN_model.h5"
@@ -144,17 +146,23 @@ class Data:
         return SOH
 
     def cal_SOC(self, I, V, V_avg, SOH):
-        # normalize
-        if I < 0:  # discharge
-            V = Data.Inverse_Single_input(V, 1.9854, 2.6913)  # V
-            V_avg = Data.Inverse_Single_input(V, 2.16588, 2.6913)  # V
-            SOH = Data.Inverse_Single_input(SOH, 94.4227, 102.14025)  # SOH
-        else:  # charge
-            V = Data.Inverse_Single_input(V, 2.3042, 2.7021)  # V
-            V_avg = Data.Inverse_Single_input(V, 2.3042, 2.70029)  # V
-            SOH = Data.Inverse_Single_input(SOH, 94.4227, 102.14025)  # SOH
+        # # normalize
+        # if I < 0:  # discharge
+        #     V = Data.Inverse_Single_input(V, 1.9854, 2.6913)  # V
+        #     V_avg = Data.Inverse_Single_input(V, 2.16588, 2.6913)  # V
+        #     SOH = Data.Inverse_Single_input(SOH, 94.4227, 102.14025)  # SOH
+        # else:  # charge
+        #     V = Data.Inverse_Single_input(V, 2.3042, 2.7021)  # V
+        #     V_avg = Data.Inverse_Single_input(V, 2.3042, 2.70029)  # V
+        #     SOH = Data.Inverse_Single_input(SOH, 94.4227, 102.14025)  # SOH
+
+        I = -50
+        V = 0.98951693
+        V_avg = 0.98951693
+        SOH = 0.64019746
 
         print("cal SOC V", V)
+        print("cal SOC V_avg", V_avg)
         print("cal SOC SOH", SOH)
 
         # input format
@@ -173,6 +181,7 @@ class Data:
             SOC_pred = self.SOC_Discha_model.predict((V_in, V_avg_in, SOH_in))
             print("rest mode")
         SOC = Data.Reverse_Single_input(SOC_pred[0][0], 0, 100)
+        print("forecast SOC = ", SOC)
         return SOC
 
     def record_SOH_data(self, V, I, Q):
@@ -211,52 +220,70 @@ class Data:
     def open_file(self, Data_name01, Data_name02):
         self.Data_name01 = Data_name01
         self.Data_name02 = Data_name02
-        # open csv file
-        self.BMS_raw_file = open(self.Data_name01, "w+", newline="")
-        self.Basic_info = open(self.Data_name02, "w+", newline="")
-        self.SOH_raw_file = open(self.Data_name03, "w+", newline="")
-        # write init data
-        self.raw_writer = csv.writer(self.BMS_raw_file)
-        self.raw_writer.writerow(
-            [
-                "Data_id",
-                "BMS_Num",
-                "state",
-                "error code",
-                "Stack Voltage(mV)",
-                "cell current(mA)",
-                " tempture(*C)",
-                "SOC",
-                "SOH",
-                "Current_Time",
-                "cell_voltage1",
-                "cell_voltage2",
-                "cell_voltage3",
-                "cell_voltage4",
-                "cell_voltage5",
-                "cell_voltage6",
-                "cell_voltage7",
-                "cell_voltage8",
-                "cell_voltage9",
-                "cell_voltage10",
-                "cell_voltage11",
-                "cell_voltage12",
-                "cell_voltage13",
-                "cell_voltage14",
-                "cell_voltage15",
-                "cell_voltage16",
-                "cell_voltage17",
-                "cell_voltage18",
-                "cell_voltage19",
-                "cell_voltage20",
-            ]
-        )
 
-        self.basic_writer = csv.writer(self.Basic_info)
-        self.basic_writer.writerow(["V", "SOC", "SOH"])
+        if os.path.isfile(Data_name02):
+            # If the file exists, catch old data to get the old state
+            with open(Data_name02, "r") as f:
+                for i, line in enumerate(f):
+                    len = i + 1
+                    data = line
+                data = data.split(",")
+                self.SOC = float(data[1])
+                self.SOH = float(data[2])
 
-        self.data_count_id = 1
-        print("get self data count", self.data_count_id)
+            self.BMS_raw_file = open(self.Data_name01, "a", newline="")
+            self.Basic_info = open(self.Data_name02, "a", newline="")
+            self.raw_writer = csv.writer(self.BMS_raw_file)
+            self.basic_writer = csv.writer(self.Basic_info)
+            self.data_count_id = 1
+            print("get self data count", self.data_count_id)
+
+        else:
+            # If the file doesn't exist, create it and write data to it
+            self.BMS_raw_file = open(self.Data_name01, "w+", newline="")
+            self.Basic_info = open(self.Data_name02, "w+", newline="")
+            # write init data
+            self.raw_writer = csv.writer(self.BMS_raw_file)
+            self.raw_writer.writerow(
+                [
+                    "Data_id",
+                    "BMS_Num",
+                    "state",
+                    "error code",
+                    "Stack Voltage(mV)",
+                    "cell current(mA)",
+                    " tempture(*C)",
+                    "SOC",
+                    "SOH",
+                    "Current_Time",
+                    "cell_voltage1",
+                    "cell_voltage2",
+                    "cell_voltage3",
+                    "cell_voltage4",
+                    "cell_voltage5",
+                    "cell_voltage6",
+                    "cell_voltage7",
+                    "cell_voltage8",
+                    "cell_voltage9",
+                    "cell_voltage10",
+                    "cell_voltage11",
+                    "cell_voltage12",
+                    "cell_voltage13",
+                    "cell_voltage14",
+                    "cell_voltage15",
+                    "cell_voltage16",
+                    "cell_voltage17",
+                    "cell_voltage18",
+                    "cell_voltage19",
+                    "cell_voltage20",
+                ]
+            )
+
+            self.basic_writer = csv.writer(self.Basic_info)
+            self.basic_writer.writerow(["V", "SOC", "SOH"])
+
+            self.data_count_id = 1
+            print("get self data count", self.data_count_id)
 
     def decode_err_code(err_code):
         if err_code == 0:
@@ -290,9 +317,14 @@ class Data:
             # print("decode json = ",decode)
 
             # decode V I data and set init data as input
-            self.V = decode["battery_voltage"] / (20 * 1000)
-            self.Q = decode["BMS1_AccumulatedCharge"] / (20 * 1000)  # wait point set
-            self.I = decode["BMS1_pack_current"] / 1000
+            # self.V = decode["battery_voltage"] / (20 * 1000)
+            # self.Q = decode["BMS1_AccumulatedCharge"] / (20 * 1000)  # wait point set
+            # self.I = decode["BMS1_pack_current"] / 1000
+
+            self.V = 2.5413
+            self.Q = 70
+            self.I = -50
+
             if V_avg_flag == 0:
                 V_avg = self.V
                 self.SOC = Data.cal_SOC(self, self.I, self.V, V_avg, self.SOH)
@@ -342,6 +374,7 @@ class Data:
             ]
 
             if i == 9:
+                # cal SOC and record SOH data every 10 seconds
                 V_avg_list[V_avg_flag] = self.V
                 V_avg = Data.sliding_avg(V_avg_list, V_avg_flag)
                 V_avg_flag += 1
@@ -363,6 +396,7 @@ class Data:
                 print("SOH=", self.SOH)
                 print("\n")
 
+                # record basic battery information every 10 seconds
                 self.raw_writer.writerow(
                     [
                         self.data_count_id,
@@ -397,7 +431,9 @@ class Data:
                         decode["cell_voltage19"],
                     ]
                 )
+            self.basic_writer.writerow([self.V, self.SOC, self.SOH])
             self.data_count_id += 1
+
             self.reg = [
                 self.state,
                 error_code,
@@ -440,7 +476,7 @@ def Get_new_data(port, data_name1, data_name2):
 
 if __name__ == "__main__":
     Get_new_data(
-        "/dev/ttyUSB1",
+        "/dev/ttyUSB0",
         "./output_data/BMS1_Output_raw_data.csv",
-        "./output_data/BMS1_Basic_data.csv"
+        "./output_data/BMS1_Basic_data.csv",
     )
