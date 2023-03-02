@@ -13,12 +13,16 @@ class Data:
     def __init__(self):
         # print("init")
         # init class and load NN models
-        self.SOC_Cha_model_files = "./models/SOC_Cha_FNN_model.h5"
-        self.SOC_Discha_model_files = "./models/SOC_Discha_FNN_model.h5"
+        self.SOC_Cha_model_files = "./models/SOC_Cha_cnn_lstm_model.h5"
+        self.SOC_Discha_model_files = "./models/SOC_Discha_cnn_lstm_model.h5"
+        self.Capacity_Cha_model_files = "./models/SOH_Cha_Capacity_model.h5"
+        self.Capacity_Discha_model_files = "./models/SOH_Discha_Capacity_model.h5"
         self.SOH_Cha_model_files = "./models/SOH_Cha_model.h5"
 
         self.SOC_Cha_model = load_model(self.SOC_Cha_model_files)
         self.SOC_Discha_model = load_model(self.SOC_Discha_model_files)
+        self.Capacity_Cha_model = load_model(self.Capacity_Cha_model_files)
+        self.Capacity_Discha_model = load_model(self.Capacity_Discha_model_files)
         self.SOH_Cha_model = load_model(self.SOH_Cha_model_files)
 
         # SOH only use Charge to estimate
@@ -145,21 +149,37 @@ class Data:
         SOH = Data.Reverse_Single_input(SOH_pred[0][0], 94.42274119, 102.1402549)
         return SOH
 
-    def cal_SOC(self, I, V, V_avg, SOH):
-        # # normalize
-        # if I < 0:  # discharge
-        #     V = Data.Inverse_Single_input(V, 1.9854, 2.6913)  # V
-        #     V_avg = Data.Inverse_Single_input(V, 2.16588, 2.6913)  # V
-        #     SOH = Data.Inverse_Single_input(SOH, 94.4227, 102.14025)  # SOH
-        # else:  # charge
-        #     V = Data.Inverse_Single_input(V, 2.3042, 2.7021)  # V
-        #     V_avg = Data.Inverse_Single_input(V, 2.3042, 2.70029)  # V
-        #     SOH = Data.Inverse_Single_input(SOH, 94.4227, 102.14025)  # SOH
+    def CoulombCounter(self, I, SOC, Q, SOH):
+        # CoulombCounter
+        SOH = Data.Inverse_Single_input(SOH, 94.32827106, 102.1402549)  # SOH
+        SOH_in = np.full((1, 1), SOH)  # SOH 0.98148148
 
-        I = -50
-        V = 0.98951693
-        V_avg = 0.98951693
-        SOH = 0.64019746
+        if I < 0:  # discharge
+            Q_max = self.Capacity_Discha_model.predict(SOH_in)
+            Q_max = Data.Reverse_Single_input(Q_max[0][0], 23844.14, 25818.84)
+            SOC_CC = SOC - (Q / Q_max)
+        else:  # charge
+            Q_max = self.Capacity_Cha_model.predict(SOH_in)
+            Q_max = Data.Reverse_Single_input(Q_max[0][0], 23828.87, 25807.71)
+            SOC_CC = SOC + (Q / Q_max)
+
+        return SOC_CC
+
+    def cal_SOC(self, I, V, V_avg, SOH):
+        # normalize
+        if I < 0:  # discharge
+            V = Data.Inverse_Single_input(V, 1.9854, 2.6913)  # V
+            V_avg = Data.Inverse_Single_input(V, 2.16588, 2.6913)  # V
+            SOH = Data.Inverse_Single_input(SOH, 94.4227, 102.14025)  # SOH
+        else:  # charge
+            V = Data.Inverse_Single_input(V, 2.3042, 2.7021)  # V
+            V_avg = Data.Inverse_Single_input(V, 2.3042, 2.70029)  # V
+            SOH = Data.Inverse_Single_input(SOH, 94.4227, 102.14025)  # SOH
+
+        # I = -50
+        # V = 0.98951693
+        # V_avg = 0.98951693
+        # SOH = 0.64019746
 
         print("cal SOC V", V)
         print("cal SOC V_avg", V_avg)
@@ -170,15 +190,20 @@ class Data:
         V_avg_in = np.full((1, 1), V_avg)  # V 0.78415105
         SOH_in = np.full((1, 1), SOH)  # SOH 0.98148148
 
+        # generate predict data format
+        input_predict_data = V_in
+        input_predict_data = np.append(input_predict_data, V_avg_in, 1)
+        input_predict_data = np.append(input_predict_data, SOH_in, 1)
+
         # choose different models
         if I > 0:
-            SOC_pred = self.SOC_Cha_model.predict((V_in, V_avg_in, SOH_in))
+            SOC_pred = self.SOC_Cha_model.predict(input_predict_data)
             print("charge mode")
         elif I < 0:
-            SOC_pred = self.SOC_Discha_model.predict((V_in, V_avg_in, SOH_in))
+            SOC_pred = self.SOC_Discha_model.predict(input_predict_data)
             print("discharge mode")
         elif I == 0:
-            SOC_pred = self.SOC_Discha_model.predict((V_in, V_avg_in, SOH_in))
+            SOC_pred = self.SOC_Discha_model.predict(input_predict_data)
             print("rest mode")
         SOC = Data.Reverse_Single_input(SOC_pred[0][0], 0, 100)
         print("forecast SOC = ", SOC)
@@ -309,6 +334,7 @@ class Data:
         self.SOH = 100
         V_avg_list = [0 for i in range(10)]
         V_avg_flag = 0
+
         for i in range(10):
             # read BMS raw data for 1 second
             response_json = self.stmserial.readline()
@@ -317,21 +343,25 @@ class Data:
             # print("decode json = ",decode)
 
             # decode V I data and set init data as input
-            # self.V = decode["battery_voltage"] / (20 * 1000)
-            # self.Q = decode["BMS1_AccumulatedCharge"] / (20 * 1000)  # wait point set
-            # self.I = decode["BMS1_pack_current"] / 1000
+            self.V = decode["battery_voltage"] / (20 * 1000)
+            self.Q = decode["BMS1_AccumulatedCharge"] / (20 * 1000)  # wait point set
+            self.I = decode["BMS1_pack_current"] / 1000
+            # self.V = 2.5413
+            # self.Q = 70
+            # self.I = -50
 
-            self.V = 2.5413
-            self.Q = 70
-            self.I = -50
-
+            # set 0 second init V_avg SOC
             if V_avg_flag == 0:
                 V_avg = self.V
+                Q_acc = self.Q
                 self.SOC = Data.cal_SOC(self, self.I, self.V, V_avg, self.SOH)
+                SOC_CC = Data.CoulombCounter(self, self.I, self.SOC, Q_acc, self.SOH)
+
             # t = temperature,sort from high to low,use the higher as temp
             t = [decode["BMS1_TS1Temp"], decode["BMS1_TS3Temp"]]
             t = sorted(t, reverse=True)
             self.Temp = t[0] / 100
+            Q_acc += self.Q
 
             # decode battery state
             if decode["battery_state"] == "OK":
@@ -378,7 +408,10 @@ class Data:
                 V_avg_list[V_avg_flag] = self.V
                 V_avg = Data.sliding_avg(V_avg_list, V_avg_flag)
                 V_avg_flag += 1
+                Q_acc += self.Q
                 self.SOC = Data.cal_SOC(self, self.I, self.V, V_avg, self.SOH)
+                SOC_CC = Data.CoulombCounter(self, self.I, SOC_CC, Q_acc, self.SOH)
+                Q_acc = 0
                 print("id = ", self.data_count_id)
                 now_time = datetime.now()
 
@@ -389,12 +422,12 @@ class Data:
                 else:
                     pass
 
-                print("V=", self.V)
-                print("I=", self.I)
-                print("Temp=", self.Temp)
-                print("SOC=", self.SOC)
-                print("SOH=", self.SOH)
-                print("\n")
+                # print("V=", self.V)
+                # print("I=", self.I)
+                # print("Temp=", self.Temp)
+                # print("SOC=", self.SOC)
+                # print("SOH=", self.SOH)
+                # print("\n")
 
                 # record basic battery information every 10 seconds
                 self.raw_writer.writerow(
