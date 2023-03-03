@@ -102,12 +102,12 @@ class Data:
 
     def sliding_avg(inputs, flag):
         # the method to calaulate average
-        output = []
+        # output = []
         window_size = 10
-        if flag >= 10:
+        if (flag + 1) >= 10:
             output = sum(inputs) / window_size
-        elif flag > 0 and flag < 10:
-            output = sum(inputs[0:flag]) / flag
+        elif (flag + 1) > 0 and flag < 10:
+            output = sum(inputs) / (flag + 1)
         return output
 
     def count_offset(V_SOH_list, Q_SOH_list):
@@ -166,14 +166,18 @@ class Data:
         return SOC_CC
 
     def cal_SOC(self, I, V, V_avg, SOH):
+
+        # print("V before inverse", V)
+        # print("V_avg before inverse", V_avg)
+        # print("SOH before inverse", SOH)
         # normalize
         if I < 0:  # discharge
             V = Data.Inverse_Single_input(V, 1.9854, 2.6913)  # V
-            V_avg = Data.Inverse_Single_input(V, 2.16588, 2.6913)  # V
+            V_avg = Data.Inverse_Single_input(V_avg, 2.16588, 2.6913)  # V
             SOH = Data.Inverse_Single_input(SOH, 94.4227, 102.14025)  # SOH
         else:  # charge
             V = Data.Inverse_Single_input(V, 2.3042, 2.7021)  # V
-            V_avg = Data.Inverse_Single_input(V, 2.3042, 2.70029)  # V
+            V_avg = Data.Inverse_Single_input(V_avg, 2.3042, 2.70029)  # V
             SOH = Data.Inverse_Single_input(SOH, 94.4227, 102.14025)  # SOH
 
         # I = -50
@@ -181,9 +185,9 @@ class Data:
         # V_avg = 0.98951693
         # SOH = 0.64019746
 
-        print("cal SOC V", V)
-        print("cal SOC V_avg", V_avg)
-        print("cal SOC SOH", SOH)
+        # print("cal SOC V", V)
+        # print("cal SOC V_avg", V_avg)
+        # print("cal SOC SOH", SOH)
 
         # input format
         V_in = np.full((1, 1), V)  # V 0.78415105
@@ -207,6 +211,7 @@ class Data:
             print("rest mode")
         SOC = Data.Reverse_Single_input(SOC_pred[0][0], 0, 100)
         print("forecast SOC = ", SOC)
+        print("\n")
         return SOC
 
     def record_SOH_data(self, V, I, Q):
@@ -233,8 +238,8 @@ class Data:
         self.stmserial.parity = serial.PARITY_NONE  # set parity check
         self.stmserial.stopbits = serial.STOPBITS_ONE  # number of stop bits
 
-        self.stmserial.timeout = 1.0  # non-block read 0.5s
-        self.stmserial.writeTimeout = 0.5  # timeout for write 0.5s
+        self.stmserial.timeout = 1  # non-block read 0.5s
+        self.stmserial.writeTimeout = 0.8  # timeout for write 0.5s
         self.stmserial.xonxoff = False  # disable software flow control
         # disable hardware (RTS/CTS) flow control
         self.stmserial.rtscts = False
@@ -332,36 +337,46 @@ class Data:
         # self.cha_flag = 1
         # self.cha_count = 1
         self.SOH = 100
-        V_avg_list = [0 for i in range(10)]
-        V_avg_flag = 0
+        self.V_avg_list = [0 for i in range(10)]
+        self.V_avg_flag = 0
 
         for i in range(10):
             # read BMS raw data for 1 second
             response_json = self.stmserial.readline()
-            decode = json.loads(response_json)
+            try:
+                decode = json.loads(response_json)
+                # print("decode json = ", decode)
+                V_raw = decode["battery_voltage"]
+                Q_raw = decode["BMS1_AccumulatedCharge"]
+                I_raw = decode["BMS1_pack_current"]
+                t_raw = [decode["BMS1_TS1Temp"], decode["BMS1_TS3Temp"]]
+            except json.decoder.JSONDecodeError as e:
+                # print(f"Skipping row: {response_json}. Encountered error: {e}")
+                print(f"Encountered Error: {e}")
             # print("get json data :\r\n",response_json)
             # print("decode json = ",decode)
 
             # decode V I data and set init data as input
-            self.V = decode["battery_voltage"] / (20 * 1000)
-            self.Q = decode["BMS1_AccumulatedCharge"] / (20 * 1000)  # wait point set
-            self.I = decode["BMS1_pack_current"] / 1000
+            self.V = V_raw / (20 * 1000)
+            self.Q = Q_raw / (20 * 1000)  # wait point set
+            self.I = I_raw / 1000
+
             # self.V = 2.5413
             # self.Q = 70
             # self.I = -50
 
             # set 0 second init V_avg SOC
-            if V_avg_flag == 0:
+            if self.V_avg_flag == 0:
                 V_avg = self.V
-                Q_acc = self.Q
+                # Q_acc = self.Q
                 self.SOC = Data.cal_SOC(self, self.I, self.V, V_avg, self.SOH)
-                SOC_CC = Data.CoulombCounter(self, self.I, self.SOC, Q_acc, self.SOH)
+                # SOC_CC = Data.CoulombCounter(self, self.I, self.SOC, Q_acc, self.SOH)
+                # self.SOC=(self.SOC+SOC_CC)*0.5
 
             # t = temperature,sort from high to low,use the higher as temp
-            t = [decode["BMS1_TS1Temp"], decode["BMS1_TS3Temp"]]
-            t = sorted(t, reverse=True)
+            t = sorted(t_raw, reverse=True)
             self.Temp = t[0] / 100
-            Q_acc += self.Q
+            # Q_acc += self.Q
 
             # decode battery state
             if decode["battery_state"] == "OK":
@@ -405,13 +420,13 @@ class Data:
 
             if i == 9:
                 # cal SOC and record SOH data every 10 seconds
-                V_avg_list[V_avg_flag] = self.V
-                V_avg = Data.sliding_avg(V_avg_list, V_avg_flag)
-                V_avg_flag += 1
-                Q_acc += self.Q
+                self.V_avg_list[self.V_avg_flag] = self.V
+                V_avg = Data.sliding_avg(self.V_avg_list, self.V_avg_flag)
+                self.V_avg_flag += 1
+                # Q_acc += self.Q
                 self.SOC = Data.cal_SOC(self, self.I, self.V, V_avg, self.SOH)
-                SOC_CC = Data.CoulombCounter(self, self.I, SOC_CC, Q_acc, self.SOH)
-                Q_acc = 0
+                # SOC_CC = Data.CoulombCounter(self, self.I, SOC_CC, Q_acc, self.SOH)
+                # Q_acc = 0
                 print("id = ", self.data_count_id)
                 now_time = datetime.now()
 
@@ -422,12 +437,12 @@ class Data:
                 else:
                     pass
 
-                # print("V=", self.V)
-                # print("I=", self.I)
-                # print("Temp=", self.Temp)
-                # print("SOC=", self.SOC)
-                # print("SOH=", self.SOH)
-                # print("\n")
+                print("V=", self.V)
+                print("I=", self.I)
+                print("Temp=", self.Temp)
+                print("SOC=", self.SOC)
+                print("SOH=", self.SOH)
+                print("\n")
 
                 # record basic battery information every 10 seconds
                 self.raw_writer.writerow(
