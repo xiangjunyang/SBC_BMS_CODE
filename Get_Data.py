@@ -22,7 +22,8 @@ class Data:
         self.SOC_Cha_model = load_model(self.SOC_Cha_model_files)
         self.SOC_Discha_model = load_model(self.SOC_Discha_model_files)
         self.Capacity_Cha_model = load_model(self.Capacity_Cha_model_files)
-        self.Capacity_Discha_model = load_model(self.Capacity_Discha_model_files)
+        self.Capacity_Discha_model = load_model(
+            self.Capacity_Discha_model_files)
         self.SOH_Cha_model = load_model(self.SOH_Cha_model_files)
 
         # SOH only use Charge to estimate
@@ -59,30 +60,39 @@ class Data:
             0,
             0,
         ]
+        self.raw_writer = None
+        self.basic_writer = None
         print("load model successfully")
 
+    @staticmethod
     def Inverse_1D(inputs, lower_limit, upper_limit):
         # to normalize input data for 1 dimension
         output = np.zeros(inputs.shape[0])
         for i in range(inputs.shape[0]):
-            output[i] = abs(inputs[i] - lower_limit) / abs(upper_limit - lower_limit)
+            output[i] = abs(inputs[i] - lower_limit) / \
+                abs(upper_limit - lower_limit)
         return output
 
+    @staticmethod
     def Reverse_1D(inputs, lower_limit, upper_limit):
         # to convert output data to real data
         output = np.zeros(inputs.shape[0])
         for i in range(inputs.shape[0]):
-            output[i] = ((inputs[i]) * abs(upper_limit - lower_limit)) + lower_limit
+            output[i] = ((inputs[i]) * abs(upper_limit -
+                         lower_limit)) + lower_limit
         return output
 
+    @staticmethod
     def Inverse_Single_input(inputs, lower_limit, upper_limit):
         output = abs(inputs - lower_limit) / abs(upper_limit - lower_limit)
         return output
 
+    @staticmethod
     def Reverse_Single_input(inputs, lower_limit, upper_limit):
         output = (abs(upper_limit - lower_limit) * inputs) + lower_limit
         return output
 
+    @staticmethod
     def Kalman1D(observations, damping=1):
         # To return the smoothed time series data
         observation_covariance = damping
@@ -100,6 +110,7 @@ class Data:
         pred_state, state_cov = kf.smooth(observations)
         return pred_state
 
+    @staticmethod
     def sliding_avg(inputs, flag):
         # the method to calaulate average
         # output = []
@@ -110,6 +121,7 @@ class Data:
             output = sum(inputs) / (flag + 1)
         return output
 
+    @staticmethod
     def count_offset(V_SOH_list, Q_SOH_list):
         # the method to calaulate average
         V_offset = []
@@ -139,14 +151,16 @@ class Data:
         VT_offset = Data.Inverse_1D(
             dVdT_arr, 0.00012779011509866933, 0.0002243848204071419
         )
-        QV_offset = Data.Inverse_1D(dQdV_arr, 53084.241685698, 108073.87147044504)
+        QV_offset = Data.Inverse_1D(
+            dQdV_arr, 53084.241685698, 108073.87147044504)
 
         dVdT_arr = np.full((1, VT_offset.shape[0]), VT_offset)
         dQdV_arr = np.full((1, QV_offset.shape[0]), QV_offset)
 
         SOH_pred = self.SOH_Cha_model.predict((dVdT_arr, dQdV_arr))
 
-        SOH = Data.Reverse_Single_input(SOH_pred[0][0], 94.42274119, 102.1402549)
+        SOH = Data.Reverse_Single_input(
+            SOH_pred[0][0], 94.42274119, 102.1402549)
         return SOH
 
     def CoulombCounter(self, I, SOC, Q, SOH):
@@ -247,24 +261,26 @@ class Data:
         self.stmserial.dsrdtr = False
         self.stmserial.open()
 
+    def write_file(self):
+        # print(".................................................................")
+        self.BMS_raw_file = open(self.Data_name01, "a", newline="")
+        self.Basic_info = open(self.Data_name02, "a", newline="")
+        self.raw_writer = csv.writer(self.BMS_raw_file)
+        self.basic_writer = csv.writer(self.Basic_info)
+
     def open_file(self, Data_name01, Data_name02):
         self.Data_name01 = Data_name01
         self.Data_name02 = Data_name02
-
-        if os.path.isfile(Data_name02):
+        if os.path.isfile(self.Data_name02):
             # If the file exists, catch old data to get the old state
-            with open(Data_name02, "r") as f:
+            with open(self.Data_name02, "r") as f:
                 for i, line in enumerate(f):
                     len = i + 1
                     data = line
                 data = data.split(",")
-                self.SOC = float(data[1])
-                self.SOH = float(data[2])
+                # self.SOC = float(data[1])
+                # self.SOH = float(data[2])
 
-            self.BMS_raw_file = open(self.Data_name01, "a", newline="")
-            self.Basic_info = open(self.Data_name02, "a", newline="")
-            self.raw_writer = csv.writer(self.BMS_raw_file)
-            self.basic_writer = csv.writer(self.Basic_info)
             self.data_count_id = 1
             print("get self data count", self.data_count_id)
 
@@ -311,10 +327,12 @@ class Data:
 
             self.basic_writer = csv.writer(self.Basic_info)
             self.basic_writer.writerow(["V", "SOC", "SOH"])
-
+            self.BMS_raw_file.close()
+            self.Basic_info.close()
             self.data_count_id = 1
             print("get self data count", self.data_count_id)
 
+    @staticmethod
     def decode_err_code(err_code):
         if err_code == 0:
             return "COMMUNICATION_ERROR"
@@ -430,12 +448,12 @@ class Data:
                 print("id = ", self.data_count_id)
                 now_time = datetime.now()
 
-                SOH_state = Data.record_SOH_data(self, self.V, self.I, self.Q)
-                if SOH_state == "cha_OK":
-                    self.SOH = Data.cal_SOH(self)
-                    pass
-                else:
-                    pass
+                # SOH_state = Data.record_SOH_data(self, self.V, self.I, self.Q)
+                # if SOH_state == "cha_OK":
+                #     self.SOH = Data.cal_SOH(self)
+                #     pass
+                # else:
+                #     pass
 
                 print("V=", self.V)
                 print("I=", self.I)
@@ -443,6 +461,8 @@ class Data:
                 print("SOC=", self.SOC)
                 print("SOH=", self.SOH)
                 print("\n")
+
+                self.write_file()
 
                 # record basic battery information every 10 seconds
                 self.raw_writer.writerow(
@@ -479,38 +499,40 @@ class Data:
                         decode["cell_voltage19"],
                     ]
                 )
-            self.basic_writer.writerow([self.V, self.SOC, self.SOH])
-            self.data_count_id += 1
+                self.basic_writer.writerow([self.V, self.SOC, self.SOH])
+                self.data_count_id += 1
 
-            self.reg = [
-                self.state,
-                error_code,
-                decode["battery_voltage"],
-                decode["BMS1_pack_current"],
-                self.Temp,
-                self.SOC,
-                self.SOH,
-                decode["cell_voltage0"],
-                decode["cell_voltage1"],
-                decode["cell_voltage2"],
-                decode["cell_voltage3"],
-                decode["cell_voltage4"],
-                decode["cell_voltage5"],
-                decode["cell_voltage6"],
-                decode["cell_voltage7"],
-                decode["cell_voltage8"],
-                decode["cell_voltage9"],
-                decode["cell_voltage10"],
-                decode["cell_voltage11"],
-                decode["cell_voltage12"],
-                decode["cell_voltage13"],
-                decode["cell_voltage14"],
-                decode["cell_voltage15"],
-                decode["cell_voltage16"],
-                decode["cell_voltage17"],
-                decode["cell_voltage18"],
-                decode["cell_voltage19"],
-            ]
+                self.reg = [
+                    self.state,
+                    error_code,
+                    decode["battery_voltage"],
+                    decode["BMS1_pack_current"],
+                    self.Temp,
+                    self.SOC,
+                    self.SOH,
+                    decode["cell_voltage0"],
+                    decode["cell_voltage1"],
+                    decode["cell_voltage2"],
+                    decode["cell_voltage3"],
+                    decode["cell_voltage4"],
+                    decode["cell_voltage5"],
+                    decode["cell_voltage6"],
+                    decode["cell_voltage7"],
+                    decode["cell_voltage8"],
+                    decode["cell_voltage9"],
+                    decode["cell_voltage10"],
+                    decode["cell_voltage11"],
+                    decode["cell_voltage12"],
+                    decode["cell_voltage13"],
+                    decode["cell_voltage14"],
+                    decode["cell_voltage15"],
+                    decode["cell_voltage16"],
+                    decode["cell_voltage17"],
+                    decode["cell_voltage18"],
+                    decode["cell_voltage19"],
+                ]
+                self.BMS_raw_file.close()
+                self.Basic_info.close()
 
         time.sleep(0.1)
 
@@ -519,7 +541,9 @@ def Get_new_data(port, data_name1, data_name2):
     NEW_DATA = Data()
     NEW_DATA.serial_setup(port)
     NEW_DATA.open_file(data_name1, data_name2)
-    NEW_DATA.read_record_raw_data()
+    # NEW_DATA.read_record_raw_data()
+    while 1:
+        NEW_DATA.read_record_raw_data()
 
 
 if __name__ == "__main__":
