@@ -32,8 +32,9 @@ class Modbus_output:
         self.SOH = reg[6]
         self.Voltage = []
         for i in range(20):
-            self.Voltage.append(reg[i + 6])
+            self.Voltage.append(reg[i + 7])
         self.V_arr = np.array(self.Voltage)
+        # print(self.V_arr)
         self.Vmax = np.amax(self.V_arr)
         self.Vmaxindex = np.argmax(self.V_arr)
         self.Vmin = np.amin(self.V_arr)
@@ -83,38 +84,12 @@ class Modbus_output:
 def Start_Modbus(port, reg):
     mbs = Modbus_output(port)
     mbs.Start_service()
-    mbs.Write_holding_register(reg)
+    # mbs.Write_holding_register(reg)
+    while 1:
+        mbs.Write_holding_register(reg)
     mbs.Stop_service()
 
 
 if __name__ == "__main__":
-    reg = [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-    ]
-    Start_Modbus("/dev/ttyUSB0", reg)
+    reg = [-50 for i in range(27)]
+    Start_Modbus("/dev/ttyUSB1", reg)

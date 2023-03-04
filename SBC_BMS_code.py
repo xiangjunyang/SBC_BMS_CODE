@@ -9,7 +9,7 @@ def main():
 
     serial_port = "/dev/ttyUSB0"
     modbus_port = "/dev/ttyUSB1"
-    Output_raw_data = "./output_data/BMS1_output_raw_data.csv"
+    Output_raw_data = "./output_data/BMS1_Output_raw_data.csv"
     BMS_Basic_data = "./output_data/BMS1_Basic_data.csv"
     # SOH_raw_data="./output_data/BMS1_SOH_raw_data.csv"
 

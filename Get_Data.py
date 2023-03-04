@@ -22,8 +22,7 @@ class Data:
         self.SOC_Cha_model = load_model(self.SOC_Cha_model_files)
         self.SOC_Discha_model = load_model(self.SOC_Discha_model_files)
         self.Capacity_Cha_model = load_model(self.Capacity_Cha_model_files)
-        self.Capacity_Discha_model = load_model(
-            self.Capacity_Discha_model_files)
+        self.Capacity_Discha_model = load_model(self.Capacity_Discha_model_files)
         self.SOH_Cha_model = load_model(self.SOH_Cha_model_files)
 
         # SOH only use Charge to estimate
@@ -31,37 +30,25 @@ class Data:
         # self.SOH_Discha_model = load_model(self.SOH_Discha_model_files)
 
         # init self register
-        self.reg = [
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-        ]
+        self.reg = [0 for i in range(27)]
         self.raw_writer = None
         self.basic_writer = None
+        self.BMS_raw_file = None
+        self.Basic_info = None
+        self.SOH = 100
+        self.V_avg_list = [0 for i in range(10)]
+        self.V_avg_flag = 0
+        self.response_json = None
+        self.decode = None
+        self.V_raw = None
+        self.Q_raw = None
+        self.I_raw = None
+        self.t_raw = None
+        self.V = 0
+        self.Q = 0
+        self.I = 0
+        self.state = 0
+
         print("load model successfully")
 
     @staticmethod
@@ -69,8 +56,7 @@ class Data:
         # to normalize input data for 1 dimension
         output = np.zeros(inputs.shape[0])
         for i in range(inputs.shape[0]):
-            output[i] = abs(inputs[i] - lower_limit) / \
-                abs(upper_limit - lower_limit)
+            output[i] = abs(inputs[i] - lower_limit) / abs(upper_limit - lower_limit)
         return output
 
     @staticmethod
@@ -78,8 +64,7 @@ class Data:
         # to convert output data to real data
         output = np.zeros(inputs.shape[0])
         for i in range(inputs.shape[0]):
-            output[i] = ((inputs[i]) * abs(upper_limit -
-                         lower_limit)) + lower_limit
+            output[i] = ((inputs[i]) * abs(upper_limit - lower_limit)) + lower_limit
         return output
 
     @staticmethod
@@ -151,16 +136,14 @@ class Data:
         VT_offset = Data.Inverse_1D(
             dVdT_arr, 0.00012779011509866933, 0.0002243848204071419
         )
-        QV_offset = Data.Inverse_1D(
-            dQdV_arr, 53084.241685698, 108073.87147044504)
+        QV_offset = Data.Inverse_1D(dQdV_arr, 53084.241685698, 108073.87147044504)
 
         dVdT_arr = np.full((1, VT_offset.shape[0]), VT_offset)
         dQdV_arr = np.full((1, QV_offset.shape[0]), QV_offset)
 
         SOH_pred = self.SOH_Cha_model.predict((dVdT_arr, dQdV_arr))
 
-        SOH = Data.Reverse_Single_input(
-            SOH_pred[0][0], 94.42274119, 102.1402549)
+        SOH = Data.Reverse_Single_input(SOH_pred[0][0], 94.42274119, 102.1402549)
         return SOH
 
     def CoulombCounter(self, I, SOC, Q, SOH):
@@ -262,7 +245,6 @@ class Data:
         self.stmserial.open()
 
     def write_file(self):
-        # print(".................................................................")
         self.BMS_raw_file = open(self.Data_name01, "a", newline="")
         self.Basic_info = open(self.Data_name02, "a", newline="")
         self.raw_writer = csv.writer(self.BMS_raw_file)
@@ -278,8 +260,9 @@ class Data:
                     len = i + 1
                     data = line
                 data = data.split(",")
-                # self.SOC = float(data[1])
-                # self.SOH = float(data[2])
+                self.SOC = float(data[1])
+                self.SOH = float(data[2])
+            f.close()
 
             self.data_count_id = 1
             print("get self data count", self.data_count_id)
@@ -352,22 +335,19 @@ class Data:
             return "VOLTAGE_IMBALANCE_WARNING"
 
     def read_record_raw_data(self):
-        # self.cha_flag = 1
-        # self.cha_count = 1
-        self.SOH = 100
         self.V_avg_list = [0 for i in range(10)]
         self.V_avg_flag = 0
 
         for i in range(10):
             # read BMS raw data for 1 second
-            response_json = self.stmserial.readline()
+            self.response_json = self.stmserial.readline()
             try:
-                decode = json.loads(response_json)
+                self.decode = json.loads(self.response_json)
                 # print("decode json = ", decode)
-                V_raw = decode["battery_voltage"]
-                Q_raw = decode["BMS1_AccumulatedCharge"]
-                I_raw = decode["BMS1_pack_current"]
-                t_raw = [decode["BMS1_TS1Temp"], decode["BMS1_TS3Temp"]]
+                self.V_raw = self.decode["battery_voltage"]
+                self.Q_raw = self.decode["BMS1_AccumulatedCharge"]
+                self.I_raw = self.decode["BMS1_pack_current"]
+                self.t_raw = [self.decode["BMS1_TS1Temp"], self.decode["BMS1_TS3Temp"]]
             except json.decoder.JSONDecodeError as e:
                 # print(f"Skipping row: {response_json}. Encountered error: {e}")
                 print(f"Encountered Error: {e}")
@@ -375,9 +355,9 @@ class Data:
             # print("decode json = ",decode)
 
             # decode V I data and set init data as input
-            self.V = V_raw / (20 * 1000)
-            self.Q = Q_raw / (20 * 1000)  # wait point set
-            self.I = I_raw / 1000
+            self.V = self.V_raw / (20 * 1000)
+            self.Q = self.Q_raw / (20 * 1000)  # wait point set
+            self.I = self.I_raw / 1000
 
             # self.V = 2.5413
             # self.Q = 70
@@ -392,48 +372,48 @@ class Data:
                 # self.SOC=(self.SOC+SOC_CC)*0.5
 
             # t = temperature,sort from high to low,use the higher as temp
-            t = sorted(t_raw, reverse=True)
+            t = sorted(self.t_raw, reverse=True)
             self.Temp = t[0] / 100
             # Q_acc += self.Q
 
             # decode battery state
-            if decode["battery_state"] == "OK":
+            if self.decode["battery_state"] == "OK":
                 self.state = 0
                 error_state = " "
                 error_code = None
             else:
                 self.state = 1
-                error_state = Data.decode_err_code(decode["BMS_error_code"])
-                error_code = decode["BMS_error_code"]
+                error_state = Data.decode_err_code(self.decode["BMS_error_code"])
+                error_code = self.decode["BMS_error_code"]
 
             self.reg = [
                 self.state,
                 error_code,
-                decode["battery_voltage"],
-                decode["BMS1_pack_current"],
+                self.decode["battery_voltage"],
+                self.decode["BMS1_pack_current"],
                 self.Temp,
                 self.SOC,
                 self.SOH,
-                decode["cell_voltage0"],
-                decode["cell_voltage1"],
-                decode["cell_voltage2"],
-                decode["cell_voltage3"],
-                decode["cell_voltage4"],
-                decode["cell_voltage5"],
-                decode["cell_voltage6"],
-                decode["cell_voltage7"],
-                decode["cell_voltage8"],
-                decode["cell_voltage9"],
-                decode["cell_voltage10"],
-                decode["cell_voltage11"],
-                decode["cell_voltage12"],
-                decode["cell_voltage13"],
-                decode["cell_voltage14"],
-                decode["cell_voltage15"],
-                decode["cell_voltage16"],
-                decode["cell_voltage17"],
-                decode["cell_voltage18"],
-                decode["cell_voltage19"],
+                self.decode["cell_voltage0"],
+                self.decode["cell_voltage1"],
+                self.decode["cell_voltage2"],
+                self.decode["cell_voltage3"],
+                self.decode["cell_voltage4"],
+                self.decode["cell_voltage5"],
+                self.decode["cell_voltage6"],
+                self.decode["cell_voltage7"],
+                self.decode["cell_voltage8"],
+                self.decode["cell_voltage9"],
+                self.decode["cell_voltage10"],
+                self.decode["cell_voltage11"],
+                self.decode["cell_voltage12"],
+                self.decode["cell_voltage13"],
+                self.decode["cell_voltage14"],
+                self.decode["cell_voltage15"],
+                self.decode["cell_voltage16"],
+                self.decode["cell_voltage17"],
+                self.decode["cell_voltage18"],
+                self.decode["cell_voltage19"],
             ]
 
             if i == 9:
@@ -448,6 +428,8 @@ class Data:
                 print("id = ", self.data_count_id)
                 now_time = datetime.now()
 
+                if self.V > 2.65 and self.I > 20:
+                    self.SOH = 100.281
                 # SOH_state = Data.record_SOH_data(self, self.V, self.I, self.Q)
                 # if SOH_state == "cha_OK":
                 #     self.SOH = Data.cal_SOH(self)
@@ -455,11 +437,31 @@ class Data:
                 # else:
                 #     pass
 
-                print("V=", self.V)
-                print("I=", self.I)
+                print("V=", self.decode["battery_voltage"])
+                print("I=", self.decode["BMS1_pack_current"])
                 print("Temp=", self.Temp)
                 print("SOC=", self.SOC)
                 print("SOH=", self.SOH)
+                print("cell_voltage0 =", self.decode["cell_voltage0"])
+                print("cell_voltage1 =", self.decode["cell_voltage1"])
+                print("cell_voltage2 =", self.decode["cell_voltage2"])
+                print("cell_voltage3 =", self.decode["cell_voltage3"])
+                print("cell_voltage4 =", self.decode["cell_voltage4"])
+                print("cell_voltage5 =", self.decode["cell_voltage5"])
+                print("cell_voltage6 =", self.decode["cell_voltage6"])
+                print("cell_voltage7 =", self.decode["cell_voltage7"])
+                print("cell_voltage8 =", self.decode["cell_voltage8"])
+                print("cell_voltage9 =", self.decode["cell_voltage9"])
+                print("cell_voltage10=", self.decode["cell_voltage10"])
+                print("cell_voltage11=", self.decode["cell_voltage11"])
+                print("cell_voltage12=", self.decode["cell_voltage12"])
+                print("cell_voltage13=", self.decode["cell_voltage13"])
+                print("cell_voltage14=", self.decode["cell_voltage14"])
+                print("cell_voltage15=", self.decode["cell_voltage15"])
+                print("cell_voltage16=", self.decode["cell_voltage16"])
+                print("cell_voltage17=", self.decode["cell_voltage17"])
+                print("cell_voltage18=", self.decode["cell_voltage18"])
+                print("cell_voltage19=", self.decode["cell_voltage19"])
                 print("\n")
 
                 self.write_file()
@@ -471,32 +473,32 @@ class Data:
                         "BMS_1",
                         self.state,
                         error_state,
-                        decode["battery_voltage"],
-                        decode["BMS1_pack_current"],
+                        self.decode["battery_voltage"],
+                        self.decode["BMS1_pack_current"],
                         self.Temp,
                         self.SOC,
                         self.SOH,
                         now_time,
-                        decode["cell_voltage0"],
-                        decode["cell_voltage1"],
-                        decode["cell_voltage2"],
-                        decode["cell_voltage3"],
-                        decode["cell_voltage4"],
-                        decode["cell_voltage5"],
-                        decode["cell_voltage6"],
-                        decode["cell_voltage7"],
-                        decode["cell_voltage8"],
-                        decode["cell_voltage9"],
-                        decode["cell_voltage10"],
-                        decode["cell_voltage11"],
-                        decode["cell_voltage12"],
-                        decode["cell_voltage13"],
-                        decode["cell_voltage14"],
-                        decode["cell_voltage15"],
-                        decode["cell_voltage16"],
-                        decode["cell_voltage17"],
-                        decode["cell_voltage18"],
-                        decode["cell_voltage19"],
+                        self.decode["cell_voltage0"],
+                        self.decode["cell_voltage1"],
+                        self.decode["cell_voltage2"],
+                        self.decode["cell_voltage3"],
+                        self.decode["cell_voltage4"],
+                        self.decode["cell_voltage5"],
+                        self.decode["cell_voltage6"],
+                        self.decode["cell_voltage7"],
+                        self.decode["cell_voltage8"],
+                        self.decode["cell_voltage9"],
+                        self.decode["cell_voltage10"],
+                        self.decode["cell_voltage11"],
+                        self.decode["cell_voltage12"],
+                        self.decode["cell_voltage13"],
+                        self.decode["cell_voltage14"],
+                        self.decode["cell_voltage15"],
+                        self.decode["cell_voltage16"],
+                        self.decode["cell_voltage17"],
+                        self.decode["cell_voltage18"],
+                        self.decode["cell_voltage19"],
                     ]
                 )
                 self.basic_writer.writerow([self.V, self.SOC, self.SOH])
@@ -505,31 +507,31 @@ class Data:
                 self.reg = [
                     self.state,
                     error_code,
-                    decode["battery_voltage"],
-                    decode["BMS1_pack_current"],
+                    self.decode["battery_voltage"],
+                    self.decode["BMS1_pack_current"],
                     self.Temp,
                     self.SOC,
                     self.SOH,
-                    decode["cell_voltage0"],
-                    decode["cell_voltage1"],
-                    decode["cell_voltage2"],
-                    decode["cell_voltage3"],
-                    decode["cell_voltage4"],
-                    decode["cell_voltage5"],
-                    decode["cell_voltage6"],
-                    decode["cell_voltage7"],
-                    decode["cell_voltage8"],
-                    decode["cell_voltage9"],
-                    decode["cell_voltage10"],
-                    decode["cell_voltage11"],
-                    decode["cell_voltage12"],
-                    decode["cell_voltage13"],
-                    decode["cell_voltage14"],
-                    decode["cell_voltage15"],
-                    decode["cell_voltage16"],
-                    decode["cell_voltage17"],
-                    decode["cell_voltage18"],
-                    decode["cell_voltage19"],
+                    self.decode["cell_voltage0"],
+                    self.decode["cell_voltage1"],
+                    self.decode["cell_voltage2"],
+                    self.decode["cell_voltage3"],
+                    self.decode["cell_voltage4"],
+                    self.decode["cell_voltage5"],
+                    self.decode["cell_voltage6"],
+                    self.decode["cell_voltage7"],
+                    self.decode["cell_voltage8"],
+                    self.decode["cell_voltage9"],
+                    self.decode["cell_voltage10"],
+                    self.decode["cell_voltage11"],
+                    self.decode["cell_voltage12"],
+                    self.decode["cell_voltage13"],
+                    self.decode["cell_voltage14"],
+                    self.decode["cell_voltage15"],
+                    self.decode["cell_voltage16"],
+                    self.decode["cell_voltage17"],
+                    self.decode["cell_voltage18"],
+                    self.decode["cell_voltage19"],
                 ]
                 self.BMS_raw_file.close()
                 self.Basic_info.close()
