@@ -36,6 +36,7 @@ class Data:
         self.BMS_raw_file = None
         self.Basic_info = None
         self.SOH = 100
+        self.SOC = 100
         self.V_avg_list = [0 for i in range(10)]
         self.V_avg_flag = 0
         self.response_json = None
@@ -154,11 +155,11 @@ class Data:
         if I < 0:  # discharge
             Q_max = self.Capacity_Discha_model.predict(SOH_in)
             Q_max = Data.Reverse_Single_input(Q_max[0][0], 23844.14, 25818.84)
-            SOC_CC = SOC - (Q / Q_max)
+            SOC_CC = SOC - ((Q / Q_max) * 100)
         else:  # charge
             Q_max = self.Capacity_Cha_model.predict(SOH_in)
             Q_max = Data.Reverse_Single_input(Q_max[0][0], 23828.87, 25807.71)
-            SOC_CC = SOC + (Q / Q_max)
+            SOC_CC = SOC + ((Q / Q_max) * 100)
 
         return SOC_CC
 
@@ -345,7 +346,7 @@ class Data:
                 self.decode = json.loads(self.response_json)
                 # print("decode json = ", decode)
                 self.V_raw = self.decode["battery_voltage"]
-                self.Q_raw = self.decode["BMS1_AccumulatedCharge"]
+                self.Q_raw = self.decode["Pass_Q"]
                 self.I_raw = self.decode["BMS1_pack_current"]
                 self.t_raw = [self.decode["BMS1_TS1Temp"], self.decode["BMS1_TS3Temp"]]
             except json.decoder.JSONDecodeError as e:
@@ -356,7 +357,7 @@ class Data:
 
             # decode V I data and set init data as input
             self.V = self.V_raw / (20 * 1000)
-            self.Q = self.Q_raw / (20 * 1000)  # wait point set
+            self.Q = self.Q_raw
             self.I = self.I_raw / 1000
 
             # self.V = 2.5413
@@ -366,15 +367,16 @@ class Data:
             # set 0 second init V_avg SOC
             if self.V_avg_flag == 0:
                 V_avg = self.V
-                # Q_acc = self.Q
-                self.SOC = Data.cal_SOC(self, self.I, self.V, V_avg, self.SOH)
+                Q_acc = self.Q
+                SOC_NN = Data.cal_SOC(self, self.I, self.V, V_avg, self.SOH)
+                self.SOC = SOC_NN
                 # SOC_CC = Data.CoulombCounter(self, self.I, self.SOC, Q_acc, self.SOH)
-                # self.SOC=(self.SOC+SOC_CC)*0.5
+                # self.SOC = (SOC_NN + SOC_CC) * 0.5
 
             # t = temperature,sort from high to low,use the higher as temp
             t = sorted(self.t_raw, reverse=True)
             self.Temp = t[0] / 100
-            # Q_acc += self.Q
+            Q_acc += self.Q
 
             # decode battery state
             if self.decode["battery_state"] == "OK":
@@ -422,9 +424,10 @@ class Data:
                 V_avg = Data.sliding_avg(self.V_avg_list, self.V_avg_flag)
                 self.V_avg_flag += 1
                 # Q_acc += self.Q
-                self.SOC = Data.cal_SOC(self, self.I, self.V, V_avg, self.SOH)
-                # SOC_CC = Data.CoulombCounter(self, self.I, SOC_CC, Q_acc, self.SOH)
+                SOC_NN = Data.cal_SOC(self, self.I, self.V, V_avg, self.SOH)
+                SOC_CC = Data.CoulombCounter(self, self.I, self.SOC, Q_acc, self.SOH)
                 # Q_acc = 0
+                self.SOC = (SOC_NN + SOC_CC) * 0.5
                 print("id = ", self.data_count_id)
                 now_time = datetime.now()
 
@@ -439,6 +442,7 @@ class Data:
 
                 print("V=", self.decode["battery_voltage"])
                 print("I=", self.decode["BMS1_pack_current"])
+                print("Pass Q=", Q_acc)
                 print("Temp=", self.Temp)
                 print("SOC=", self.SOC)
                 print("SOH=", self.SOH)
@@ -535,6 +539,7 @@ class Data:
                 ]
                 self.BMS_raw_file.close()
                 self.Basic_info.close()
+                Q_acc = 0
 
         time.sleep(0.1)
 
