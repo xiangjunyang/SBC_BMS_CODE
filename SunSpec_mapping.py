@@ -328,7 +328,7 @@ class Suns_map:
         for n in range(20):
             # Cell 1~20 #3
             self.SunSp[178 + i] = voltage[n]
-            print("cell V ", n, voltage[n])
+            # print("cell V ", n, voltage[n])
             self.SunSp[179 + i] = temperature
             self.SunSp[180 + i] = state
             i = i + 3

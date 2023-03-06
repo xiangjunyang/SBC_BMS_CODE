@@ -25,11 +25,17 @@ def main():
         # thread task start
         output_data = Get_data.reg
         t = threading.Thread(target=Get_data.read_record_raw_data)
+        # print("finish get new data",output_data)
         t.start()
-        # Get_data.read_record_raw_data()
+
         mbs_service.Write_holding_register(output_data)
+        # print("finish write reg data")
         t.join()
-        # print("finish thread")
+
+        # ##################
+        # output_data = Get_data.reg
+        # Get_data.read_record_raw_data()
+        # mbs_service.Write_holding_register(output_data)
 
     mbs_service.Stop_service()
 

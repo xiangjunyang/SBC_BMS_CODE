@@ -74,7 +74,8 @@ class Modbus_output:
         )
         reg = list(Suns.SunSp)
         self.slave.set_values("mbs", 40000, reg)
-        time.sleep(0.1)  # small delay to let the communication thread doing his job
+        # small delay to let the communication thread doing his job
+        time.sleep(0.1)
         while True:
             time.sleep(0.1)
             break
