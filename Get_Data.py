@@ -13,11 +13,11 @@ class Data:
     def __init__(self):
         # print("init")
         # init class and load NN models
-        self.SOC_Cha_model_files = "./models/SOC_Cha_cnn_lstm_model.h5"
-        self.SOC_Discha_model_files = "./models/SOC_Discha_cnn_lstm_model.h5"
-        self.Capacity_Cha_model_files = "./models/SOH_Cha_Capacity_model.h5"
-        self.Capacity_Discha_model_files = "./models/SOH_Discha_Capacity_model.h5"
-        self.SOH_Cha_model_files = "./models/SOH_Cha_model.h5"
+        self.SOC_Cha_model_files = "/home/orangepi/Desktop/project/SBC_BMS_CODE/models/SOC_Cha_cnn_lstm_model.h5"
+        self.SOC_Discha_model_files = "/home/orangepi/Desktop/project/SBC_BMS_CODE/models/SOC_Discha_cnn_lstm_model.h5"
+        self.Capacity_Cha_model_files = "/home/orangepi/Desktop/project/SBC_BMS_CODE/models/SOH_Cha_Capacity_model.h5"
+        self.Capacity_Discha_model_files = "/home/orangepi/Desktop/project/SBC_BMS_CODE/models/SOH_Discha_Capacity_model.h5"
+        self.SOH_Cha_model_files = "/home/orangepi/Desktop/project/SBC_BMS_CODE/models/SOH_Cha_model.h5"
 
         self.SOC_Cha_model = load_model(self.SOC_Cha_model_files)
         self.SOC_Discha_model = load_model(self.SOC_Discha_model_files)
