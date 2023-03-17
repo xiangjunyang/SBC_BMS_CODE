@@ -169,7 +169,7 @@ class Data:
 
     def cal_SOC(self, I, V, V_avg, SOH):
         # normalize
-        if I < 0:  # discharge
+        if I < 0 or I == 0:  # discharge
             V = Data.Inverse_Single_input(V, 1.9854, 2.6913)  # V
             V_avg = Data.Inverse_Single_input(V_avg, 2.16588, 2.6913)  # V
             SOH = Data.Inverse_Single_input(SOH, 94.4227, 102.14025)  # SOH
